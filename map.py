@@ -13,11 +13,13 @@ from PIL import Image
 
 WATER_COLOUR = [174, 204, 240]
 
-# TODO: Update the length of arrows when the map is zoomed in/out (or prevent zooming in/out)
-
 def degree_to_x_y_direction(degrees: int) -> tuple:
     """Converts degrees to x and y direction."""
     return np.cos(np.radians(degrees)), np.sin(np.radians(degrees))
+
+def radians_to_x_y_directions(radians: float) -> tuple:
+    """Converts radians to x and y direction."""
+    return np.cos(radians), np.sin(radians)
 
 
 class WorldMap:
@@ -31,7 +33,6 @@ class WorldMap:
 
         # Absolute coords are the coordinates of the corners of the map, in order of top left, top right, bottom left, bottom right.
         self.absolute_coords = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
-        self.absolute_coords_old = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
         self.fig.canvas.mpl_connect('draw_event', self.update_coords)
 
         self.setup_arrows(40, 40)
@@ -48,15 +49,16 @@ class WorldMap:
         right = top_right[0]
         top = top_left[1]
         bottom = bottom_left[1]
+
         self.arrowpos = []
+        # Step through the map in a grid pattern, increments of amount_x and amount_y.
         for x in range(left, right, (right - left) // amount_x):
             for y in range(top, bottom, (bottom - top) // amount_y):
                 if np.isclose(list(self.img[y, x]), WATER_COLOUR, atol=5).all():    # use isclose to account for slight variations in colour
                     self.arrowpos.append((x, y))
 
     def plot_arrows(self):
-        """Plots all arrows on the map."""
-        # First clear all current arrows
+        """Plots all arrows on the map. Clears current arrows first."""
         for arrow in self.current_arrows:
             arrow.remove()
         self.current_arrows = []
@@ -67,6 +69,7 @@ class WorldMap:
             # Or maybe change to a system to place an arrow wherever the current changes more than a threshold.
             # Maybe change width and colour depending on power of the current, if possible. For now, red will do, though.
             x_dir, y_dir = degree_to_x_y_direction(random.randint(0, 360))
+            # TODO: Make the arrow's length dependant on the size of the grid square.
             arrow = Arrow(x, y, x_dir * 40, y_dir * 40, width=5, fc='r', ec='r')
             self.current_arrows.append(arrow)
             self.ax.add_patch(arrow)
@@ -84,12 +87,12 @@ class WorldMap:
         top_right = (x_max, y_max)
         bottom_left = (x_min, y_min)
         bottom_right = (x_max, y_min)
-        self.absolute_coords = [top_left, top_right, bottom_left, bottom_right]
+        new_coords = [top_left, top_right, bottom_left, bottom_right]
 
-        if self.absolute_coords != self.absolute_coords_old:
+        if self.absolute_coords != new_coords:    # Only redraw if the coords have changed, otherwise it will loop forever.
             self.setup_arrows()
             self.plot_arrows()
-            self.absolute_coords_old = self.absolute_coords
+            self.absolute_coords = new_coords
 
 
 if __name__ == "__main__":
