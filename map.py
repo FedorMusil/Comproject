@@ -13,11 +13,11 @@ from PIL import Image
 
 WATER_COLOUR = [174, 204, 240]
 
-def degree_to_x_y_direction(degrees: int) -> tuple:
+def degree_to_x_y_direction(degrees: int) -> tuple[float, float]:
     """Converts degrees to x and y direction."""
     return np.cos(np.radians(degrees)), np.sin(np.radians(degrees))
 
-def radians_to_x_y_directions(radians: float) -> tuple:
+def radians_to_x_y_directions(radians: float) -> tuple[float, float]:
     """Converts radians to x and y direction."""
     return np.cos(radians), np.sin(radians)
 
@@ -29,18 +29,17 @@ class WorldMap:
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.ax.imshow(self.img)
-        self.current_arrows = []
+        self.current_arrows: list[Arrow] = []
 
         # Absolute coords are the coordinates of the corners of the map, in order of top left, top right, bottom left, bottom right.
         self.absolute_coords = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
-        self.absolute_coords_old = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
         self.fig.canvas.mpl_connect('draw_event', self.update_coords)
 
         self.setup_arrows(40, 40)
         self.plot_arrows()
         plt.show()
 
-    def setup_arrows(self, amount_x: int = 20, amount_y: int = 20):
+    def setup_arrows(self, amount_x: int = 40, amount_y: int = 40):
         """
         Stores arrows in a list. We will place at most amount_x * amount_y arrows on the map, in a grid.
         Arrows must only show up on water.
@@ -50,11 +49,14 @@ class WorldMap:
         right = top_right[0]
         top = top_left[1]
         bottom = bottom_left[1]
+
         self.arrowpos = []
+        # Iterate over the grid such that we get amount_x * amount_y arrows at most.
         for x in range(left, right, (right - left) // amount_x):
             for y in range(top, bottom, (bottom - top) // amount_y):
-                if np.isclose(list(self.img[y, x]), WATER_COLOUR, atol=5).all():    # use isclose to account for slight variations in colour
-                    self.arrowpos.append((x, y))
+                if x > 0 and y > 0 and x < self.img.shape[1] and y < self.img.shape[0]: # Don't do anything if out of bounds
+                    if np.isclose(list(self.img[y, x]), WATER_COLOUR, atol=7).all():    # use isclose to account for slight variations in colour
+                        self.arrowpos.append((x, y))
 
     def plot_arrows(self):
         """Plots all arrows on the map."""
@@ -69,7 +71,13 @@ class WorldMap:
             # Or maybe change to a system to place an arrow wherever the current changes more than a threshold.
             # Maybe change width and colour depending on power of the current, if possible. For now, red will do, though.
             x_dir, y_dir = degree_to_x_y_direction(random.randint(0, 360))
-            arrow = Arrow(x, y, x_dir * 40, y_dir * 40, width=5, fc='r', ec='r')
+
+            # Adjust arrow size by the size of the map
+            x_min, x_max = self.ax.get_xlim()
+            y_min, y_max = self.ax.get_ylim()
+            x_dir *= (x_max - x_min) / 30
+            y_dir *= (y_max - y_min) / 30
+            arrow = Arrow(x, y, x_dir, y_dir, width=5, fc='r', ec='r')
             self.current_arrows.append(arrow)
             self.ax.add_patch(arrow)
         self.fig.canvas.draw_idle()
@@ -86,12 +94,12 @@ class WorldMap:
         top_right = (x_max, y_max)
         bottom_left = (x_min, y_min)
         bottom_right = (x_max, y_min)
-        self.absolute_coords = [top_left, top_right, bottom_left, bottom_right]
+        new_coords = [top_left, top_right, bottom_left, bottom_right]
 
-        if self.absolute_coords != self.absolute_coords_old:
+        if self.absolute_coords != new_coords:    # Comparison is necessary, otherwise it will loop infinitely.
+            self.absolute_coords = new_coords
             self.setup_arrows()
             self.plot_arrows()
-            self.absolute_coords_old = self.absolute_coords
 
 
 if __name__ == "__main__":
