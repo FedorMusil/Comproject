@@ -6,6 +6,7 @@ Will contain code to plot the map and show arrows on the map.
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import threading
 from matplotlib.patches import Arrow
 from math import ceil
 from PIL import Image
@@ -30,19 +31,20 @@ class WorldMap:
         self.ax = self.fig.add_subplot(111)
         self.ax.imshow(self.img)
         self.current_arrows: list[Arrow] = []
+        self.redraw_timer = None
 
         # Absolute coords are the coordinates of the corners of the map, in order of top left, top right, bottom left, bottom right.
         self.absolute_coords = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
-        self.fig.canvas.mpl_connect('draw_event', self.update_coords)
+        self.fig.canvas.mpl_connect('draw_event', self.on_draw)
 
-        self.setup_arrows(40, 40)
+        self.setup_arrows()
         self.plot_arrows()
         plt.show()
 
     def setup_arrows(self, amount_x: int = 40, amount_y: int = 40):
         """
         Stores arrows in a list. We will place at most amount_x * amount_y arrows on the map, in a grid.
-        Arrows must only show up on water.
+        Arrows will only show up on water.
         """
         top_left, top_right, bottom_left, bottom_right = self.absolute_coords
         left = top_left[0]
@@ -59,10 +61,16 @@ class WorldMap:
                         self.arrowpos.append((x, y))
 
     def plot_arrows(self):
-        """Plots all arrows on the map."""
-        # First clear all current arrows
+        """Plots all arrows on the map. Removes old arrows first."""
         for arrow in self.current_arrows:
-            arrow.remove()
+            try:
+                arrow.remove()
+            # These errors happen if the arrow is already removed, so we can ignore them.
+            # Should only happen when moving the canvas between the redraw timer ending and the arrows updating.
+            except ValueError:
+                pass
+            except NotImplementedError:
+                pass
         self.current_arrows = []
 
         for x, y in self.arrowpos:
@@ -82,8 +90,19 @@ class WorldMap:
             self.ax.add_patch(arrow)
         self.fig.canvas.draw_idle()
 
-    def update_coords(self, event):
-        """callback for resize event, update coords in case of resize"""
+    def on_draw(self, event):
+        """
+        callback for resize event, redraws arrows after 0.4 seconds of inactivity.
+        Should help somewhat with performance when moving the map around.
+        """
+        if self.redraw_timer is not None:
+            self.redraw_timer.cancel()
+
+        self.redraw_timer = threading.Timer(0.4, self.redraw_arrows)
+        self.redraw_timer.start()
+
+    def redraw_arrows(self):
+        """Redraws arrows on the map. Updates absolute coordinates of current canvas before drawing."""
         x_min, x_max = self.ax.get_xlim()
         y_min, y_max = self.ax.get_ylim()
 
