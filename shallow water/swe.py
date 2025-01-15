@@ -35,14 +35,14 @@ L_x = 1E+6              # Length of domain in x-direction
 L_y = 1E+6              # Length of domain in y-direction
 g = 9.81                 # Acceleration of gravity [m/s^2]
 H = 100                # Depth of fluid [m]
-f_0 = 1E-4              # Fixed part ofcoriolis parameter [1/s]
+f_0 = 1.16E-4              # Fixed part ofcoriolis parameter (changed for the waddensea coordinates[1/s]
 beta = 2E-11            # gradient of coriolis parameter [1/ms]
 rho_0 = 1024.0          # Density of fluid [kg/m^3)]
 tau_0 = 1000.5             # Amplitude of wind stress [kg/ms^2]
-use_coriolis = True     # True if you want coriolis force
+use_coriolis = False     # True if you want coriolis force
 use_friction = False     # True if you want bottom friction
 use_wind = False        # True if you want wind stress
-use_beta = True         # True if you want variation in coriolis
+use_beta = False         # True if you want variation in coriolis
 use_source = False       # True if you want mass source into the domain
 use_sink = False       # True if you want mass sink out of the domain
 param_string = "\n================================================================"
@@ -153,11 +153,19 @@ v_n[:, -1] = 0.0            # Ensuring initial v satisfy BC
 # Initial condition for eta.
 #eta_n[:, :] = np.sin(4*np.pi*X/L_y) + np.sin(4*np.pi*Y/L_y)
 #eta_n = np.exp(-((X-0)**2/(2*(L_R)**2) + (Y-0)**2/(2*(L_R)**2)))
-eta_n = np.exp(-((X-L_x/2.7)**2/(2*(0.05E+6)**2) + (Y-L_y/4)**2/(2*(0.05E+6)**2)))
+#eta_n = np.exp(-((X-L_x/2.7)**2/(2*(0.05E+6)**2) + (Y-L_y/4)**2/(2*(0.05E+6)**2)))
 #eta_n[int(3*N_x/8):int(5*N_x/8),int(3*N_y/8):int(5*N_y/8)] = 1.0
 #eta_n[int(6*N_x/8):int(7*N_x/8),int(6*N_y/8):int(7*N_y/8)] = 1.0
 #eta_n[int(3*N_x/8):int(5*N_x/8), int(13*N_y/14):] = 1.0
 #eta_n[:, :] = 0.0
+
+# Have a surface which is completly flat, which would better represent the ocean.
+
+# Now the next step is to make a map using the MSL(mean sea level) differations found on: emodnet.ec.europa.eu
+
+# Then we have to make sure we have u and v commponents matching those from the waddensea
+eta_n[:, :] = 1.0
+
 
 #viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
 
