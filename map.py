@@ -45,6 +45,10 @@ class WorldMap:
         self.current_arrows: list[Arrow] = []
         self.redraw_timer = None
 
+        # Put the square here. objects is an array of arrays, where each object contains its boundaries.
+        self.objects = []
+        self.objects.append(self.draw_object())
+
         # Absolute coords are the coordinates of the corners of the map, in order of top left, top right, bottom left, bottom right.
         self.absolute_coords = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
         # self.fig.canvas.mpl_connect('draw_event', self.on_draw)
@@ -52,6 +56,24 @@ class WorldMap:
         self.setup_arrows()
         self.plot_arrows()
         plt.show()
+
+    def draw_object(self):
+        """
+        Draw a square in the center of the map. No arrows can be drawn in the square.
+        can be changed to make different shapes using a voxel method.
+        """
+        fig_size = (self.img.shape[0],self.img.shape[1])
+        quarter = fig_size[0]/4
+        objects_bounds = [(1*quarter, 1*quarter), (3*quarter, 1*quarter), (3*quarter, 3*quarter), (1*quarter, 3*quarter)]
+
+        # draw square on map:
+        x = [i[0] for i in objects_bounds]
+        y = [i[1] for i in objects_bounds]
+        x.append(x[0])
+        y.append(y[0])
+        plt.plot(x, y)
+        
+        return objects_bounds
 
     def setup_arrows(self, amount_x: int = 40, amount_y: int = 40):
         """
@@ -72,6 +94,19 @@ class WorldMap:
                     if np.isclose(list(self.img[y, x]), self.water_colour, atol=7).all():    # use isclose to account for slight variations in colour
                         self.arrowpos.append((x, y))
 
+    def check_objects(self, x, y):
+        """
+        checks if an arrow is going to be drawn in an object. returns true if the arrow intersects an object
+        
+        Only works for squares/ rectangles at the moment.
+        """
+        for i in self.objects:
+            min_bounds = (i[0][0], i[0][1])
+            max_bounds = (i[2][0], i[2][1])
+            if (x > min_bounds[0] and x < max_bounds[0]) and (y > min_bounds[1] and y < max_bounds[1]):
+                return True
+        return False
+
     def plot_arrows(self):
         """Plots all arrows on the map. Removes old arrows first."""
         for arrow in self.current_arrows:
@@ -89,6 +124,11 @@ class WorldMap:
             # Make arrows point away from center
             x_min, x_max = self.ax.get_xlim()
             y_min, y_max = self.ax.get_ylim()
+
+            # check object intersection
+            if self.check_objects(x, y) == True:
+                continue
+
             mid_x, mid_y = (x_min + x_max) // 2, (y_min + y_max) // 2
             x_dir, y_dir = point_away_from_point(mid_x + 250, mid_y + 250, x, y)
             #x_dir, y_dir = degree_to_x_y_direction(random.randint(0, 360))
