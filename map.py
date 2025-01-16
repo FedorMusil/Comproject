@@ -12,10 +12,9 @@ from math import ceil
 from PIL import Image
 
 
-WATER_COLOUR = [174, 204, 240]
-
 def degree_to_x_y_direction(degrees: int) -> tuple[float, float]:
     """Converts degrees to x and y direction."""
+    degrees += 90
     return np.cos(np.radians(degrees)), np.sin(np.radians(degrees))
 
 def radians_to_x_y_directions(radians: float) -> tuple[float, float]:
@@ -23,10 +22,23 @@ def radians_to_x_y_directions(radians: float) -> tuple[float, float]:
     return np.cos(radians), np.sin(radians)
 
 
+def point_away_from_point(x1: int, y1: int, x2: int, y2: int) -> tuple[float, float]:
+    """Returns the x and y direction of a point away from another point."""
+    x_dir = x2 - x1
+    y_dir = -(y2 - y1)
+    x_dir, y_dir = x_dir / np.sqrt(x_dir ** 2 + y_dir ** 2), y_dir / np.sqrt(x_dir ** 2 + y_dir ** 2)
+    return x_dir, y_dir
+
+
 class WorldMap:
-    def __init__(self, image: str = "world.jpg"):
-        self.img = Image.open(image)
-        self.img = np.array(self.img)
+    def __init__(self, image: str = "world.jpg", use_image: bool = False):
+        if use_image:
+            self.img = Image.open(image)
+            self.img = np.array(self.img)
+            self.water_colour = [174, 204, 240] # world.jpg water colour
+        else:   # If not using an image, create a white image.
+            self.img = np.ones((1000, 1000, 3)) * 255
+            self.water_colour = [255, 255, 255]
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.ax.imshow(self.img)
@@ -35,7 +47,7 @@ class WorldMap:
 
         # Absolute coords are the coordinates of the corners of the map, in order of top left, top right, bottom left, bottom right.
         self.absolute_coords = [(0, 0), (self.img.shape[1], 0), (0, self.img.shape[0]), (self.img.shape[1], self.img.shape[0])]
-        self.fig.canvas.mpl_connect('draw_event', self.on_draw)
+        # self.fig.canvas.mpl_connect('draw_event', self.on_draw)
 
         self.setup_arrows()
         self.plot_arrows()
@@ -57,7 +69,7 @@ class WorldMap:
         for x in range(left, right, (right - left) // amount_x):
             for y in range(top, bottom, (bottom - top) // amount_y):
                 if x > 0 and y > 0 and x < self.img.shape[1] and y < self.img.shape[0]: # Don't do anything if out of bounds
-                    if np.isclose(list(self.img[y, x]), WATER_COLOUR, atol=7).all():    # use isclose to account for slight variations in colour
+                    if np.isclose(list(self.img[y, x]), self.water_colour, atol=7).all():    # use isclose to account for slight variations in colour
                         self.arrowpos.append((x, y))
 
     def plot_arrows(self):
@@ -74,15 +86,14 @@ class WorldMap:
         self.current_arrows = []
 
         for x, y in self.arrowpos:
-            # TODO replace random direction with calculated one (formulas to be implemented)
-            # Probably will have to calculate the direction at the current position?
-            # Or maybe change to a system to place an arrow wherever the current changes more than a threshold.
-            # Maybe change width and colour depending on power of the current, if possible. For now, red will do, though.
-            x_dir, y_dir = degree_to_x_y_direction(random.randint(0, 360))
-
-            # Adjust arrow size by the size of the map
+            # Make arrows point away from center
             x_min, x_max = self.ax.get_xlim()
             y_min, y_max = self.ax.get_ylim()
+            mid_x, mid_y = (x_min + x_max) // 2, (y_min + y_max) // 2
+            x_dir, y_dir = point_away_from_point(mid_x + 250, mid_y + 250, x, y)
+            #x_dir, y_dir = degree_to_x_y_direction(random.randint(0, 360))
+
+            # Adjust arrow size by the size of the map
             x_dir *= (x_max - x_min) / 30
             y_dir *= (y_max - y_min) / 30
             arrow = Arrow(x, y, x_dir, y_dir, width=5, fc='r', ec='r')
