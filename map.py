@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import threading
+import sys
+sys.path.insert(1, "shallow water/")
+import swe                              # Import the shallow water equations code
 from matplotlib.patches import Arrow
 from math import ceil
 from PIL import Image
@@ -32,6 +35,8 @@ def point_away_from_point(x1: int, y1: int, x2: int, y2: int) -> tuple[float, fl
 
 class WorldMap:
     def __init__(self, image: str = "world.jpg", use_image: bool = False):
+        eta_list, u_list, v_list, X, Y = swe.main()
+        print(np.array(v_list))
         if use_image:
             self.img = Image.open(image)
             self.img = np.array(self.img)
@@ -72,7 +77,7 @@ class WorldMap:
         x.append(x[0])
         y.append(y[0])
         plt.plot(x, y)
-        
+
         return objects_bounds
 
     def setup_arrows(self, amount_x: int = 40, amount_y: int = 40):
@@ -97,7 +102,7 @@ class WorldMap:
     def check_objects(self, x, y):
         """
         checks if an arrow is going to be drawn in an object. returns true if the arrow intersects an object
-        
+
         Only works for squares/ rectangles at the moment.
         """
         for i in self.objects:
