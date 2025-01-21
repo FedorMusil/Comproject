@@ -1,3 +1,4 @@
+
 """File with several visualization functions intended to use
 with results from 2D shallow water model swe2D.py"""
 
@@ -71,22 +72,11 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
     fig = plt.figure(figsize = (8, 8), facecolor = "white")
     ax = fig.add_subplot(111, projection='3d')
 
-    island_center_x = int(X.shape[0] / 2)
-    island_center_y = int(Y.shape[1] / 2)
-    island_radius = int(min(X.shape[0], Y.shape[1]) / 10)
+    surf = ax.plot_surface(X, Y, eta_list[0], cmap = plt.cm.RdBu_r)
 
     def update_surf(num):
         ax.clear()
-        eta = eta_list[num]
-        surf = ax.plot_surface(X/1000, Y/1000, eta, cmap = plt.cm.RdBu_r)
-
-        # Highlight the island with a different color
-        for i in range(X.shape[0]):
-            for j in range(Y.shape[1]):
-                distance_to_center = np.sqrt((i - island_center_x)**2 + (j - island_center_y)**2)
-                if distance_to_center < island_radius:
-                    ax.plot_surface(X[i:i+2, j:j+2]/1000, Y[i:i+2, j:j+2]/1000, eta[i:i+2, j:j+2], color='brown')
-
+        surf = ax.plot_surface(X/1000, Y/1000, eta_list[num], cmap = plt.cm.RdBu_r)
         ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:.2f}$ hours".format(
             num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
         ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
