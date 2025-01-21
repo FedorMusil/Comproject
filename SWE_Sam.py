@@ -80,8 +80,10 @@ def draw_compl_islands(shape):
         edges_x.append(shape[i][0])
         edges_y.append(shape[i][1])
     
-    # print(edges)
+    # test check if [-1, -1] is in island, should return True (it's in the island)
     print(check_island_bounds(np.array([-1, -1]), np.array(edges)))
+    
+    # plots island
     plt.plot(edges_x, edges_y)
     plt.show()
 
@@ -90,7 +92,6 @@ def check_island_bounds(point, island):
     """
     returns true if in island, otherwise false
     """
-    res = False
     dists = []
     ress = []
     for edge in island:
