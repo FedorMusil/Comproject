@@ -3,15 +3,17 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # Grid parameters
-nx, ny = 101, 101
-x = np.linspace(-500, 500, nx)
-y = np.linspace(-500, 500, ny)
+nx, ny = 150, 150
+Lx, Ly = 1E+6, 1E+6     # length of x and y domain
+x = np.linspace(-Lx/2, Lx/2, nx)
+y = np.linspace(-Ly/2, Ly/2, ny)
 dx = dy = x[1] - x[0]
 
 # Physical constants
 g = 9.81  # Gravitational acceleration
 h0 = 100.0  # Resting water depth
 cfl = 0.9  # CFL condition factor
+f_0 = 1.16E-4 # Fixed part of coriolis parameter
 
 # Create the grid
 X, Y = np.meshgrid(x, y)
@@ -22,8 +24,13 @@ u = np.zeros((ny, nx))  # x-component velocity
 v = np.zeros((ny, nx))  # y-component velocity
 
 # Apply Gaussian disturbance to h
-Lx, Ly = 100, 100  # Characteristic length scales of the disturbance
-eta_n = 5.0 * np.exp(-((X)**2 / (2 * Lx**2) + (Y)**2 / (2 * Ly**2)))  # Gaussian disturbance
+Lr = np.sqrt(g*h)/(f_0*4)
+# eta_n = np.exp(-((X)**2 / (Lr**2) + (Y)**2 / (Lr**2)))  # Gaussian disturbance
+#offset_x = Lx/2.7
+#offset_y = Ly/4.0
+offset_x = 375000
+offset_y = 250000
+eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) + (Y-offset_y)**2/(2*(0.05E+6)**2)))
 h += eta_n  # Superimpose the disturbance
 
 # Update function for the shallow water equations
@@ -37,6 +44,13 @@ def update(h, u, v, dt):
     # Update velocities using height gradients
     u_new = u - g * dt * dhdx
     v_new = v - g * dt * dhdy
+
+    # Apply boundary conditions: set velocities to 0 at the edges
+    u_new[:, 0] = 0.0       # Western boundary
+    u_new[:, -1] = 0.0      # Eastern boundary
+
+    v_new[0, :] = 0.0       # Southern boundary
+    v_new[-1, :] = 0.0      # Northern boundary
 
     # Compute fluxes
     flux_x = H * u_new
@@ -75,14 +89,15 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
         Q.set_UVC(u[::q_int, ::q_int], v[::q_int, ::q_int])
         return Q,
 
-    anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=True)
-    anim.save(f"{filename}.mp4", fps=24, dpi=200)
+    anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=False)
+    anim.save(f"{filename}.mp4", fps=60, dpi=200)
     return anim
 
 # Main simulation loop
 u_list = []
 v_list = []
-num_frames = 200
+seconds = 10
+num_frames = 60 * seconds
 
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
