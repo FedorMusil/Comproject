@@ -70,7 +70,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, title_off
     return anim
 
 def main():
-    nx, ny = 150, 150
+    nx, ny = 250, 250
     Lx, Ly = 1E+6, 1E+6     # length of x and y domain
     x = np.linspace(-Lx/2, Lx/2, nx)
     y = np.linspace(-Ly/2, Ly/2, ny)
@@ -101,7 +101,7 @@ def main():
 
     u_list = []
     v_list = []
-    seconds = 10
+    seconds = 60
     num_frames = 60 * seconds
 
     t = time.time()
@@ -117,7 +117,7 @@ def main():
 
     if USE_MULTIPROCESSING:
         print("Using multiprocessing")
-        num_procs = 4
+        num_procs = 8
         procs = []
         for i in range(num_procs):
             startindex = i * len(u_list) // num_procs
