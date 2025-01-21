@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from matplotlib.animation import FuncAnimation
 
 # Grid parameters
@@ -100,11 +101,15 @@ v_list = []
 seconds = 10
 num_frames = 60 * seconds
 
+t = time.time()
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
     dt = cfl * dx / np.sqrt(g * max_H)
     h, u, v = update(h, u, v, dt)
     u_list.append(u.copy())
     v_list.append(v.copy())
+print("Time taken to math:", time.time() - t)
 
+t = time.time()
 velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
+print("Time taken to animate:", time.time() - t)
