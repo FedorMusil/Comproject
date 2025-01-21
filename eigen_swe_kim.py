@@ -7,8 +7,8 @@ from matplotlib.patches import Arrow
 # using the non-conservative form on wikipedia:
 # constants:
 g = 9.81 # the acceleration due to gravity
-f = 1.16E-4 #  the Coriolis coefficient associated with the Coriolis force. On Earth, f is equal to 2Ω sin(φ), where Ω is the angular rotation rate of the Earth (π/12 radians/hour), and φ is the latitude 
-k = 0 # the viscous drag coefficient 
+f = 1.16E-4 #  the Coriolis coefficient associated with the Coriolis force. On Earth, f is equal to 2Ω sin(φ), where Ω is the angular rotation rate of the Earth (π/12 radians/hour), and φ is the latitude
+k = 0 # the viscous drag coefficient
 v = 1 # the kinematic viscosity mm^2/sec
 
 # variables:
@@ -65,7 +65,7 @@ class swe:
 
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
-            
+
             self.update_cell((100,100))
 
             time.sleep(0.1)
@@ -74,7 +74,7 @@ class swe:
 
     def func1(self):
         # delta u over t
-        
+
         pass
 
     def clear_arrs(self):
@@ -106,7 +106,7 @@ class swe:
             angle = 270
         elif i == [1, -1]:
             angle = 315
-        
+
         return angle
 
     def check_neighbours(self, dims, x, y):
@@ -114,7 +114,7 @@ class swe:
 
         added_vecs = np.array([0,0], dtype=np.float64)
         mean_num = 0
-        
+
         for i in [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]]:
             # neighbour is out of bounds, so ignore
             if (x + i[0] < 0 or x + i[0] >= dims[0] or y + i[1] < 0 or y + i[1] >= dims[1]) :
@@ -156,7 +156,7 @@ class swe:
         for x in range(dims[0]):
             for y in range(dims[1]):
                 updated_force[x][y] = self.check_neighbours(dims, x, y)
-        
+
         # update whole map
         self.grid = updated_force
 
@@ -167,7 +167,7 @@ class swe:
 
         # update grid_force
         self.grid_force[location[0]][location[1]] = force
-        
+
         self.grid[location[0]+1][location[1]] = np.array([force, 0])
         self.grid[location[0]-1][location[1]] = np.array([-force, 0])
         self.grid[location[0]][location[1]+1] = np.array([0, force])

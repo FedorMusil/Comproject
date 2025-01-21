@@ -8,8 +8,6 @@ import numpy as np
 import random
 import threading
 import sys
-sys.path.insert(1, "shallow water/")
-import swe                              # Import the shallow water equations code
 from matplotlib.patches import Arrow
 from math import ceil
 from PIL import Image
@@ -35,8 +33,6 @@ def point_away_from_point(x1: int, y1: int, x2: int, y2: int) -> tuple[float, fl
 
 class WorldMap:
     def __init__(self, image: str = "world.jpg", use_image: bool = False):
-        eta_list, u_list, v_list, X, Y = swe.main()
-        print(np.array(v_list))
         if use_image:
             self.img = Image.open(image)
             self.img = np.array(self.img)
