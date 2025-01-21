@@ -25,8 +25,10 @@ v = np.zeros((ny, nx))  # y-component velocity
 
 # Apply Gaussian disturbance to h
 Lr = np.sqrt(g*h)/(f_0*4)
+
 # eta_n = np.exp(-((X)**2 / (Lr**2) + (Y)**2 / (Lr**2)))  # Gaussian disturbance
 eta_n = np.exp(-((X-Lx/2.7)**2/(2*(0.05E+6)**2) + (Y-Ly/4)**2/(2*(0.05E+6)**2)))
+
 h += eta_n  # Superimpose the disturbance
 
 # Update function for the shallow water equations
@@ -92,7 +94,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
 # Main simulation loop
 u_list = []
 v_list = []
-num_frames = 200
+num_frames = 240
 
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
