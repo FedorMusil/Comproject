@@ -65,6 +65,45 @@ def update(h, u, v, dt):
 
     return h_new, u_new, v_new
 
+
+def draw_compl_islands(shape):
+    """
+    shape must be an array of vectors, where the outline is given in a clockwise manner.
+    """
+    edges = []
+    edges_x = []
+    edges_y = []
+    for i in range(len(shape)-1, -2, -1):
+        # edges_x.append(shape[i])
+        edges.append([[shape[i][0], shape[i-1][0]],
+                      [shape[i][1], shape[i-1][1]]])
+        edges_x.append(shape[i][0])
+        edges_y.append(shape[i][1])
+    
+    # print(edges)
+    print(check_island_bounds(np.array([-1, -1]), np.array(edges)))
+    plt.plot(edges_x, edges_y)
+    plt.show()
+
+
+def check_island_bounds(point, island):
+    """
+    returns true if in island, otherwise false
+    """
+    res = False
+    dists = []
+    ress = []
+    for edge in island:
+        dist = np.abs(np.linalg.norm(np.cross(edge[1]-edge[0], edge[0]- point))/np.linalg.norm(edge[1]-edge[0]))
+        dists.append(dist)
+        ress.append((point[0]-edge[0][0])*(edge[1][1])-edge[0][1])
+        - ((point[1]-edge[0][1])*(edge[1][0]-edge[0][0]))
+    # print("dists = ", dists)
+    # print(ress)
+    # print(min(dists), ress[np.argmin(dists)], (ress[np.argmin(dists)] < 0))
+    return ress[np.argmin(dists)] < 0
+
+
 # Animation function to create the visualization
 def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
@@ -141,5 +180,11 @@ for frame in range(num_frames):
     u_list.append(u.copy())
     v_list.append(v.copy())
 
-velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
+# velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
+draw_compl_islands([[1.5, 2.0],
+                    [2.0, 1.0],
+                    [2.0, -2.0],
+                    [-1.0, -3.0],
+                    [-3.0, -1.0],
+                    [-1.0, 2.0]])
 # surface_animation(X, Y, u_list, v_list, frame_interval=10, filename="surface_water")
