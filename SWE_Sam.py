@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FFMpegWriter as writer
 
 # Grid parameters
 nx, ny = 150, 150
@@ -94,11 +95,44 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     anim.save(f"{filename}.mp4", fps=60, dpi=200)
     return anim
 
+def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+
+    plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname="serif", fontsize=19)
+    plt.xlabel("x [km]", fontname="serif", fontsize=16)
+    plt.ylabel("y [km]", fontname="serif", fontsize=16)
+
+    surf = ax.plot_surface(X, Y, u_list[0], cmap=plt.cm.RdBu_r)
+
+
+    def update_surf(num):
+
+        z_list = np.array([[np.linalg.norm(np.array([u_list[num][x], v_list[num][y]])) for x in range(len(u_list[num]))] for y in range(len(v_list[num]))])
+
+        ax.clear()
+        surf = ax.plot_surface(X/1000, Y/1000, z_list, cmap = plt.cm.RdBu_r)
+        ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:.2f}$ hours".format(
+            num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
+        ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
+        ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
+        ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
+        ax.set_zlim(-5, 20)
+        plt.tight_layout()
+        return surf,
+
+    anim = FuncAnimation(fig, update_surf,
+        frames = len(u_list), interval = 10, blit = False)
+    mpeg_writer = writer(fps = 24, bitrate = 10000,
+        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
+    anim.save(f"{filename}.mp4", fps=24, dpi=200)
+    # anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+    return anim,    # Need to return anim object to see the animation
+
 # Main simulation loop
 u_list = []
 v_list = []
 seconds = 10
-num_frames = 60 * seconds
+num_frames = 24 * seconds
 
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
@@ -108,3 +142,4 @@ for frame in range(num_frames):
     v_list.append(v.copy())
 
 velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
+# surface_animation(X, Y, u_list, v_list, frame_interval=10, filename="surface_water")
