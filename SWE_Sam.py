@@ -75,7 +75,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
         Q.set_UVC(u[::q_int, ::q_int], v[::q_int, ::q_int])
         return Q,
 
-    anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=False)
+    anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=True)
     anim.save(f"{filename}.mp4", fps=24, dpi=200)
     return anim
 
