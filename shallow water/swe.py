@@ -27,47 +27,184 @@ import numpy as np
 import matplotlib.pyplot as plt
 import viz_tools
 
-def main():
-    # ==================================================================================
-    # ================================ Parameter stuff =================================
-    # ==================================================================================
-    # --------------- Physical prameters ---------------
-    L_x = 1E+6              # Length of domain in x-direction
-    L_y = 1E+6              # Length of domain in y-direction
-    g = 9.81                 # Acceleration of gravity [m/s^2]
-    H = 100                # Depth of fluid [m]
-    f_0 = 1.16E-4              # Fixed part ofcoriolis parameter (changed for the waddensea coordinates[1/s]
-    beta = 2E-11            # gradient of coriolis parameter [1/ms]
-    rho_0 = 1024.0          # Density of fluid [kg/m^3)]
-    tau_0 = 1000.5             # Amplitude of wind stress [kg/ms^2]
-    use_coriolis = False     # True if you want coriolis force
-    use_friction = False     # True if you want bottom friction
-    use_wind = False        # True if you want wind stress
-    use_beta = False         # True if you want variation in coriolis
-    use_source = False       # True if you want mass source into the domain
-    use_sink = False       # True if you want mass sink out of the domain
-    param_string = "\n================================================================"
-    param_string += "\nuse_coriolis = {}\nuse_beta = {}".format(use_coriolis, use_beta)
-    param_string += "\nuse_friction = {}\nuse_wind = {}".format(use_friction, use_wind)
-    param_string += "\nuse_source = {}\nuse_sink = {}".format(use_source, use_sink)
-    param_string += "\ng = {:g}\nH = {:g}".format(g, H)
+# ==================================================================================
+# ================================ Parameter stuff =================================
+# ==================================================================================
+# --------------- Physical prameters ---------------
+L_x = 1E+6              # Length of domain in x-direction
+L_y = 1E+6              # Length of domain in y-direction
+g = 9.81                 # Acceleration of gravity [m/s^2]
+H = 10                # Depth of fluid [m]
+f_0 = 1.16E-4              # Fixed part ofcoriolis parameter (changed for the waddensea coordinates[1/s]
+beta = 2E-11            # gradient of coriolis parameter [1/ms]
+rho_0 = 1024.0          # Density of fluid [kg/m^3)]
+tau_0 = 1000.5             # Amplitude of wind stress [kg/ms^2]
+use_coriolis = False     # True if you want coriolis force
+use_friction = False     # True if you want bottom friction
+use_wind = False        # True if you want wind stress
+use_beta = False         # True if you want variation in coriolis
+use_source = False       # True if you want mass source into the domain
+use_sink = False       # True if you want mass sink out of the domain
+param_string = "\n================================================================"
+param_string += "\nuse_coriolis = {}\nuse_beta = {}".format(use_coriolis, use_beta)
+param_string += "\nuse_friction = {}\nuse_wind = {}".format(use_friction, use_wind)
+param_string += "\nuse_source = {}\nuse_sink = {}".format(use_source, use_sink)
+param_string += "\ng = {:g}\nH = {:g}".format(g, H)
 
-    # --------------- Computational prameters ---------------
-    N_x = 150                            # Number of grid points in x-direction
-    N_y = 150                            # Number of grid points in y-direction
-    dx = L_x/(N_x - 1)                   # Grid spacing in x-direction
-    dy = L_y/(N_y - 1)                   # Grid spacing in y-direction
-    dt = 0.1*min(dx, dy)/np.sqrt(g*H)    # Time step (defined from the CFL condition)
-    time_step = 1                        # For counting time loop steps
-    max_time_step = 5000                 # Total number of time steps in simulation
-    x = np.linspace(-L_x/2, L_x/2, N_x)  # Array with x-points
-    y = np.linspace(-L_y/2, L_y/2, N_y)  # Array with y-points
-    X, Y = np.meshgrid(x, y)             # Meshgrid for plotting
-    X = np.transpose(X)                  # To get plots right
-    Y = np.transpose(Y)                  # To get plots right
-    param_string += "\ndx = {:.2f} km\ndy = {:.2f} km\ndt = {:.2f} s".format(dx, dy, dt)
+# --------------- Computational prameters ---------------
+N_x = 150                            # Number of grid points in x-direction
+N_y = 150                            # Number of grid points in y-direction
+dx = L_x/(N_x - 1)                   # Grid spacing in x-direction
+dy = L_y/(N_y - 1)                   # Grid spacing in y-direction
+dt = 0.1*min(dx, dy)/np.sqrt(g*H)    # Time step (defined from the CFL condition)
+time_step = 1                        # For counting time loop steps
+max_time_step = 500                 # Total number of time steps in simulation
+x = np.linspace(-L_x/2, L_x/2, N_x)  # Array with x-points
+y = np.linspace(-L_y/2, L_y/2, N_y)  # Array with y-points
+X, Y = np.meshgrid(x, y)             # Meshgrid for plotting
+X = np.transpose(X)                  # To get plots right
+Y = np.transpose(Y)                  # To get plots right
+param_string += "\ndx = {:.2f} km\ndy = {:.2f} km\ndt = {:.2f} s".format(dx, dy, dt)
 
-    # Define friction array if friction is enabled.
+# Define friction array if friction is enabled.
+if (use_friction is True):
+    kappa_0 = 1/(5*24*3600)
+    kappa = np.ones((N_x, N_y))*kappa_0
+    #kappa[0, :] = kappa_0
+    #kappa[-1, :] = kappa_0
+    #kappa[:, 0] = kappa_0
+    #kappa[:, -1] = kappa_0
+    #kappa[:int(N_x/15), :] = 0
+    #kappa[int(14*N_x/15)+1:, :] = 0
+    #kappa[:, :int(N_y/15)] = 0
+    #kappa[:, int(14*N_y/15)+1:] = 0
+    #kappa[int(N_x/15):int(2*N_x/15), int(N_y/15):int(14*N_y/15)+1] = 0
+    #kappa[int(N_x/15):int(14*N_x/15)+1, int(N_y/15):int(2*N_y/15)] = 0
+    #kappa[int(13*N_x/15)+1:int(14*N_x/15)+1, int(N_y/15):int(14*N_y/15)+1] = 0
+    #kappa[int(N_x/15):int(14*N_x/15)+1, int(13*N_y/15)+1:int(14*N_y/15)+1] = 0
+    param_string += "\nkappa = {:g}\nkappa/beta = {:g} km".format(kappa_0, kappa_0/(beta*1000))
+
+# Define wind stress arrays if wind is enabled.
+if (use_wind is True):
+    tau_x = -tau_0*np.cos(np.pi*y/L_y)*0
+    tau_y = np.zeros((1, len(x)))
+    param_string += "\ntau_0 = {:g}\nrho_0 = {:g} km".format(tau_0, rho_0)
+
+# Define coriolis array if coriolis is enabled.
+if (use_coriolis is True):
+    if (use_beta is True):
+        f = f_0 + beta*y        # Varying coriolis parameter
+        L_R = np.sqrt(g*H)/f_0  # Rossby deformation radius
+        c_R = beta*g*H/f_0**2   # Long Rossby wave speed
+    else:
+        f = f_0*np.ones(len(y))                 # Constant coriolis parameter
+
+    alpha = dt*f                # Parameter needed for coriolis scheme
+    beta_c = alpha**2/4         # Parameter needed for coriolis scheme
+
+    param_string += "\nf_0 = {:g}".format(f_0)
+    param_string += "\nMax alpha = {:g}\n".format(alpha.max())
+    param_string += "\nRossby radius: {:.1f} km".format(L_R/1000)
+    param_string += "\nRossby number: {:g}".format(np.sqrt(g*H)/(f_0*L_x))
+    param_string += "\nLong Rossby wave speed: {:.3f} m/s".format(c_R)
+    param_string += "\nLong Rossby transit time: {:.2f} days".format(L_x/(c_R*24*3600))
+    param_string += "\n================================================================\n"
+
+# Define source array if source is enabled.
+if (use_source):
+    sigma = np.zeros((N_x, N_y))
+    sigma = 0.0001*np.exp(-((X-L_x/2)**2/(2*(1E+5)**2) + (Y-L_y/2)**2/(2*(1E+5)**2)))
+
+# Define source array if source is enabled.
+if (use_sink is True):
+    w = np.ones((N_x, N_y))*sigma.sum()/(N_x*N_y)
+
+# Write all parameters out to file.
+with open("param_output.txt", "w") as output_file:
+    output_file.write(param_string)
+
+print(param_string)     # Also print parameters to screen
+# ============================= Parameter stuff done ===============================
+
+# ==================================================================================
+# ==================== Allocating arrays and initial conditions ====================
+# ==================================================================================
+u_n = np.zeros((N_x, N_y))      # To hold u at current time step
+u_np1 = np.zeros((N_x, N_y))    # To hold u at next time step
+v_n = np.zeros((N_x, N_y))      # To hold v at current time step
+v_np1 = np.zeros((N_x, N_y))    # To hold v at enxt time step
+eta_n = np.zeros((N_x, N_y))    # To hold eta at current time step
+eta_np1 = np.zeros((N_x, N_y))  # To hold eta at next time step
+
+# Temporary variables (each time step) for upwind scheme in eta equation
+h_e = np.zeros((N_x, N_y))
+h_w = np.zeros((N_x, N_y))
+h_n = np.zeros((N_x, N_y))
+h_s = np.zeros((N_x, N_y))
+uhwe = np.zeros((N_x, N_y))
+vhns = np.zeros((N_x, N_y))
+
+# Initial conditions for u and v.
+u_n[:, :] = 0.0             # Initial condition for u
+v_n[:, :] = 0.0             # Initial condition for v
+u_n[-1, :] = 0.0            # Ensuring initial u satisfy BC
+v_n[:, -1] = 0.0            # Ensuring initial v satisfy BC
+
+# Initial condition for eta.
+#eta_n[:, :] = np.sin(4*np.pi*X/L_y) + np.sin(4*np.pi*Y/L_y)
+#eta_n = np.exp(-((X-0)**2/(2*(L_R)**2) + (Y-0)**2/(2*(L_R)**2)))
+#eta_n = np.exp(-((X-L_x/2.7)**2/(2*(0.05E+6)**2) + (Y-L_y/4)**2/(2*(0.05E+6)**2)))
+#eta_n[int(3*N_x/8):int(5*N_x/8),int(3*N_y/8):int(5*N_y/8)] = 1.0
+wave_amplitude = 0.01
+wave_number_x = 200 * np.pi / L_x
+wave_number_y = 200 * np.pi / L_y
+
+eta_n = wave_amplitude * (np.sin(wave_number_x * X) + np.sin(wave_number_y * Y))
+#eta_n[int(3*N_x/8):int(5*N_x/8), int(13*N_y/14):] = 1.0
+#eta_n[:, :] = 0.0
+
+# Have a surface which is completly flat, which would better represent the ocean.
+
+# Now the next step is to make a map using the MSL(mean sea level) differations found on: emodnet.ec.europa.eu
+
+# Then we have to make sure we have u and v commponents matching those from the waddensea
+#eta_n[:, :] = 0.2
+
+island_center_x = int(N_x / 2)
+island_center_y = int(N_y / 2)
+island_radius = int(min(N_x, N_y) / 10)
+
+# Create the island by setting eta_n values higher in the island region
+for i in range(N_x):
+    for j in range(N_y):
+        distance_to_center = np.sqrt((i - island_center_x)**2 + (j - island_center_y)**2)
+        if distance_to_center < island_radius:
+            eta_n[i, j] = 0.0  # Elevation of the island
+
+
+#viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
+
+# Sampling variables.
+eta_list = list(); u_list = list(); v_list = list()         # Lists to contain eta and u,v for animation
+hm_sample = list(); ts_sample = list(); t_sample = list()   # Lists for Hovmuller and time series
+hm_sample.append(eta_n[:, int(N_y/2)])                      # Sample initial eta in middle of domain
+ts_sample.append(eta_n[int(N_x/2), int(N_y/2)])             # Sample initial eta at center of domain
+t_sample.append(0.0)                                        # Add initial time to t-samples
+anim_interval = 20                                         # How often to sample for time series
+sample_interval = 1000                                      # How often to sample for time series
+# =============== Done with setting up arrays and initial conditions ===============
+
+t_0 = time.perf_counter()  # For timing the computation loop
+
+# ==================================================================================
+# ========================= Main time loop for simulation ==========================
+# ==================================================================================
+while (time_step < max_time_step):
+    # ------------ Computing values for u and v at next time step --------------
+    u_np1[:-1, :] = u_n[:-1, :] - g*dt/dx*(eta_n[1:, :] - eta_n[:-1, :])
+    v_np1[:, :-1] = v_n[:, :-1] - g*dt/dy*(eta_n[:, 1:] - eta_n[:, :-1])
+
+    # Add friction if enabled.
     if (use_friction is True):
         kappa_0 = 1/(5*24*3600)
         kappa = np.ones((N_x, N_y))*kappa_0
@@ -137,13 +274,22 @@ def main():
     eta_n = np.zeros((N_x, N_y))    # To hold eta at current time step
     eta_np1 = np.zeros((N_x, N_y))  # To hold eta at next time step
 
-    # Temporary variables (each time step) for upwind scheme in eta equation
-    h_e = np.zeros((N_x, N_y))
-    h_w = np.zeros((N_x, N_y))
-    h_n = np.zeros((N_x, N_y))
-    h_s = np.zeros((N_x, N_y))
-    uhwe = np.zeros((N_x, N_y))
-    vhns = np.zeros((N_x, N_y))
+    # Store eta and (u, v) every anin_interval time step for animations.
+    if (time_step % anim_interval == 0):
+        print("Time: \t{:.2f} hours".format(time_step*dt/3600))
+        print("Step: \t{} / {}".format(time_step, max_time_step))
+        print("Mass: \t{}\n".format(np.sum(eta_n)))
+        u_list.append(u_n)
+        v_list.append(v_n)
+        eta_list.append(eta_n)
+
+    for i in range(N_x):
+        for j in range(N_y):
+            distance_to_center = np.sqrt((i - island_center_x)**2 + (j - island_center_y)**2)
+            if distance_to_center < island_radius:
+                eta_n[i, j] = 0.0  # Keep the elevation of the island constant
+                u_n[i, j] = 0.0
+                v_n[i, j] = 0.0
 
     # Initial conditions for u and v.
     u_n[:, :] = 0.0             # Initial condition for u
@@ -278,5 +424,3 @@ def main():
     # ============================ Done with visualization =============================
 
     #plt.show()
-
-    return eta_list, u_list, v_list, X, Y
