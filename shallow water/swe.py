@@ -34,7 +34,7 @@ import viz_tools
 L_x = 1E+6              # Length of domain in x-direction
 L_y = 1E+6              # Length of domain in y-direction
 g = 9.81                 # Acceleration of gravity [m/s^2]
-H = 100                # Depth of fluid [m]
+H = 10                # Depth of fluid [m]
 f_0 = 1.16E-4              # Fixed part ofcoriolis parameter (changed for the waddensea coordinates[1/s]
 beta = 2E-11            # gradient of coriolis parameter [1/ms]
 rho_0 = 1024.0          # Density of fluid [kg/m^3)]
@@ -58,7 +58,7 @@ dx = L_x/(N_x - 1)                   # Grid spacing in x-direction
 dy = L_y/(N_y - 1)                   # Grid spacing in y-direction
 dt = 0.1*min(dx, dy)/np.sqrt(g*H)    # Time step (defined from the CFL condition)
 time_step = 1                        # For counting time loop steps
-max_time_step = 5000                 # Total number of time steps in simulation
+max_time_step = 500                 # Total number of time steps in simulation
 x = np.linspace(-L_x/2, L_x/2, N_x)  # Array with x-points
 y = np.linspace(-L_y/2, L_y/2, N_y)  # Array with y-points
 X, Y = np.meshgrid(x, y)             # Meshgrid for plotting
@@ -146,7 +146,7 @@ vhns = np.zeros((N_x, N_y))
 
 # Initial conditions for u and v.
 u_n[:, :] = 0.0             # Initial condition for u
-v_n[:, :] = 0.0             # Initial condition for u
+v_n[:, :] = 0.0             # Initial condition for v
 u_n[-1, :] = 0.0            # Ensuring initial u satisfy BC
 v_n[:, -1] = 0.0            # Ensuring initial v satisfy BC
 
@@ -155,7 +155,11 @@ v_n[:, -1] = 0.0            # Ensuring initial v satisfy BC
 #eta_n = np.exp(-((X-0)**2/(2*(L_R)**2) + (Y-0)**2/(2*(L_R)**2)))
 #eta_n = np.exp(-((X-L_x/2.7)**2/(2*(0.05E+6)**2) + (Y-L_y/4)**2/(2*(0.05E+6)**2)))
 #eta_n[int(3*N_x/8):int(5*N_x/8),int(3*N_y/8):int(5*N_y/8)] = 1.0
-#eta_n[int(6*N_x/8):int(7*N_x/8),int(6*N_y/8):int(7*N_y/8)] = 1.0
+wave_amplitude = 0.01
+wave_number_x = 200 * np.pi / L_x
+wave_number_y = 200 * np.pi / L_y
+
+eta_n = wave_amplitude * (np.sin(wave_number_x * X) + np.sin(wave_number_y * Y))
 #eta_n[int(3*N_x/8):int(5*N_x/8), int(13*N_y/14):] = 1.0
 #eta_n[:, :] = 0.0
 
@@ -164,7 +168,18 @@ v_n[:, -1] = 0.0            # Ensuring initial v satisfy BC
 # Now the next step is to make a map using the MSL(mean sea level) differations found on: emodnet.ec.europa.eu
 
 # Then we have to make sure we have u and v commponents matching those from the waddensea
-eta_n[:, :] = 1.0
+#eta_n[:, :] = 0.2
+
+island_center_x = int(N_x / 2)
+island_center_y = int(N_y / 2)
+island_radius = int(min(N_x, N_y) / 10)
+
+# Create the island by setting eta_n values higher in the island region
+for i in range(N_x):
+    for j in range(N_y):
+        distance_to_center = np.sqrt((i - island_center_x)**2 + (j - island_center_y)**2)
+        if distance_to_center < island_radius:
+            eta_n[i, j] = 0.0  # Elevation of the island
 
 
 #viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
@@ -260,6 +275,14 @@ while (time_step < max_time_step):
         u_list.append(u_n)
         v_list.append(v_n)
         eta_list.append(eta_n)
+    
+    for i in range(N_x):
+        for j in range(N_y):
+            distance_to_center = np.sqrt((i - island_center_x)**2 + (j - island_center_y)**2)
+            if distance_to_center < island_radius:
+                eta_n[i, j] = 0.0  # Keep the elevation of the island constant
+                u_n[i, j] = 0.0
+                v_n[i, j] = 0.0
 
 # ============================= Main time loop done ================================
 print("Main computation loop done!\nExecution time: {:.2f} s".format(time.perf_counter() - t_0))
