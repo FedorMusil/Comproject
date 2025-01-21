@@ -8,6 +8,8 @@ from matplotlib.animation import FuncAnimation
 
 
 USE_MULTIPROCESSING = True
+VIDEO_NAME = "velocity_field"
+FRAMERATE = 60
 
 # Update function for the shallow water equations
 def update(h, u, v, dt, h0, dx, dy, g):
@@ -66,7 +68,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, title_off
         return Q,
 
     anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=False)
-    anim.save(f"{filename}.mp4", fps=60, dpi=200)
+    anim.save(f"{filename}.mp4", fps=FRAMERATE, dpi=200)
     return anim
 
 def main():
@@ -102,10 +104,10 @@ def main():
     u_list = []
     v_list = []
     seconds = 60
-    num_frames = 60 * seconds
+    num_frames = FRAMERATE * seconds
 
     t = time.time()
-    for _ in range(num_frames):
+    for _ in range(num_frames): # Precompute all values
         max_H = np.max(h + h0)  # Total height for CFL condition
         dt = cfl * dx / np.sqrt(g * max_H)
         h, u, v = update(h, u, v, dt, h0, dx, dy, g)
@@ -117,7 +119,7 @@ def main():
 
     if USE_MULTIPROCESSING:
         print("Using multiprocessing")
-        num_procs = 8
+        num_procs = 10  # Don't make this too high, or you'll run out of memory. Ideal is 8-12, lower to 4 if your computer can't handle.
         procs = []
         for i in range(num_procs):
             startindex = i * len(u_list) // num_procs
@@ -125,18 +127,18 @@ def main():
             u_list_section = u_list[startindex:endindex]
             v_list_section = v_list[startindex:endindex]
             title_offset = startindex * 10 / 3600
-            p = multiprocessing.Process(target=velocity_animation, args=(X, Y, u_list_section, v_list_section, 10, f"velocity_field_{i}", title_offset))
+            p = multiprocessing.Process(target=velocity_animation, args=(X, Y, u_list_section, v_list_section, 10, f"{VIDEO_NAME}_{i}", title_offset))
             p.start()
             procs.append(p)
 
         for p in procs:
             p.join()
 
-        # Stitch videos with ffmpeg
+        # Stitch videos with ffmpeg. Make sure you can call ffmpeg with the terminal.
         with open("videos.txt", "w") as f:
             for i in range(num_procs):
-                f.write(f"file 'velocity_field_{i}.mp4'\n")
-        command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", "velocity_field.mp4"]
+                f.write(f"file '{VIDEO_NAME}_{i}.mp4'\n")   # Write the video filenames to a text file so ffmpeg doesn't skip any videos.
+        command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
         subprocess.run(command)
 
         # Remove temporary video and text files
@@ -145,7 +147,7 @@ def main():
         os.remove("videos.txt")
     else:
         print("Not using multiprocessing")
-        velocity_animation(X, Y, u_list, v_list, 10, "velocity_field")
+        velocity_animation(X, Y, u_list, v_list, 10, VIDEO_NAME)
 
     print("\nTime taken to animate:", time.time() - t)
 
