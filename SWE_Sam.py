@@ -27,9 +27,6 @@ v = np.zeros((ny, nx))  # y-component velocity
 # Apply Gaussian disturbance to h
 Lr = np.sqrt(g*h)/(f_0*4)
 
-# eta_n = np.exp(-((X)**2 / (Lr**2) + (Y)**2 / (Lr**2)))  # Gaussian disturbance
-#offset_x = Lx/2.7
-#offset_y = Ly/4.0
 offset_x = 375000
 offset_y = 250000
 eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) + (Y-offset_y)**2/(2*(0.05E+6)**2)))
@@ -110,6 +107,4 @@ for frame in range(num_frames):
     v_list.append(v.copy())
 print("Time taken to math:", time.time() - t)
 
-t = time.time()
 velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
-print("Time taken to animate:", time.time() - t)
