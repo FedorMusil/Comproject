@@ -35,6 +35,10 @@ offset_y = 250000
 eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) + (Y-offset_y)**2/(2*(0.05E+6)**2)))
 h += eta_n  # Superimpose the disturbance
 
+
+islands = []
+
+
 # Update function for the shallow water equations
 def update(h, u, v, dt):
     H = h + h0  # Total water height
@@ -51,8 +55,14 @@ def update(h, u, v, dt):
     u_new[:, 0] = 0.0       # Western boundary
     u_new[:, -1] = 0.0      # Eastern boundary
 
+    u_new[50, 50] = 0.0       # Western boundary
+    u_new[75, 75] = 0.0      # Eastern boundary
+
     v_new[0, :] = 0.0       # Southern boundary
     v_new[-1, :] = 0.0      # Northern boundary
+
+    # v_new[50, :] = 0.0       # Southern boundary
+    # v_new[75, :] = 0.0      # Northern boundary
 
     # Compute fluxes
     flux_x = H * u_new
@@ -83,6 +93,8 @@ def draw_compl_islands(shape):
     # test check if [-1, -1] is in island, should return True (it's in the island)
     print(check_island_bounds(np.array([-1, -1]), np.array(edges)))
     
+    islands.append(edges)
+
     # plots island
     plt.plot(edges_x, edges_y)
     plt.show()
@@ -112,6 +124,8 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     plt.xlabel("x [km]", fontname="serif", fontsize=16)
     plt.ylabel("y [km]", fontname="serif", fontsize=16)
     q_int = 3
+    ax.plot([50, 50, 75, 75, 50], [50, 75, 75, 50, 50])
+    ax.plot([0, 100], [0, 100])
     Q = ax.quiver(
         X[::q_int, ::q_int] / 1000.0, Y[::q_int, ::q_int] / 1000.0,
         u_list[0][::q_int, ::q_int], v_list[0][::q_int, ::q_int],
@@ -132,7 +146,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
         return Q,
 
     anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=False)
-    anim.save(f"{filename}.mp4", fps=60, dpi=200)
+    anim.save(f"{filename}.mp4", fps=24, dpi=200)
     return anim
 
 def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
@@ -172,7 +186,8 @@ def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
 u_list = []
 v_list = []
 seconds = 10
-num_frames = 24 * seconds
+fps = 24
+num_frames = fps * seconds
 
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
@@ -181,11 +196,12 @@ for frame in range(num_frames):
     u_list.append(u.copy())
     v_list.append(v.copy())
 
-# velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
-draw_compl_islands([[1.5, 2.0],
-                    [2.0, 1.0],
-                    [2.0, -2.0],
-                    [-1.0, -3.0],
-                    [-3.0, -1.0],
-                    [-1.0, 2.0]])
+velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
 # surface_animation(X, Y, u_list, v_list, frame_interval=10, filename="surface_water")
+
+# draw_compl_islands([[1.5, 2.0],
+#                     [2.0, 1.0],
+#                     [2.0, -2.0],
+#                     [-1.0, -3.0],
+#                     [-3.0, -1.0],
+#                     [-1.0, 2.0]])
