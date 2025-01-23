@@ -11,6 +11,8 @@ from matplotlib.animation import FFMpegWriter as writer
 
 USE_MULTIPROCESSING = True
 VIDEO_NAME = "velocity_field"
+COLOUR = "limegreen"
+OUTLINE_COLOUR = "red"
 FRAMERATE = 60
 
 # Update function for the shallow water equations
@@ -80,7 +82,7 @@ def draw_compl_islands(ax, islands):
     for i in islands:
         x_s = [edge[0] for edge in i]
         y_s = [edge[1] for edge in i]
-        ax.plot(x_s, y_s)
+        ax.plot(x_s, y_s, color=OUTLINE_COLOUR)
 
 
 def create_compl_islands(shape, islands):
@@ -172,13 +174,16 @@ def check_island_bounds(point, island):
 
 
 # Animation function to create the visualization
-def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, title_offset = 0):
+def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, taken_points, title_offset = 0):
     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
     plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days",
               fontname="serif", fontsize=19)
     plt.xlabel("x [km]", fontname="serif", fontsize=16)
     plt.ylabel("y [km]", fontname="serif", fontsize=16)
     q_int = 3
+    # Draw every coordinate in taken_points as lime green
+    for i in taken_points:
+        ax.plot(i[1], i[0], "o", color=COLOUR)
 
     # Draws the islands to the plot
     draw_compl_islands(ax, islands)
@@ -300,6 +305,8 @@ def main():
 
     # Checks which grid points are in an island. Only needs to be executed once.
     taken_points = grid_check(nx, ny, islands, taken_points)
+    # Convert taken points to array of actual coordinates on plot
+    to_red = [[(x-75)/150 * 1000, (y-75)/150 * 1000] for x, y in taken_points]
 
     for _ in range(num_frames):
         max_H = np.max(h + h0)  # Total height for CFL condition
@@ -314,7 +321,7 @@ def main():
 
     if USE_MULTIPROCESSING:
         print("Using multiprocessing")
-        num_procs = 4   # Don't use too many or your laptop will explode
+        num_procs = 8   # Don't use too many or your laptop will explode
         procs = []
         for i in range(num_procs):
             startindex = i * (num_frames // num_procs)
@@ -324,7 +331,7 @@ def main():
             title_offset = startindex * 10 / 3600
             p = multiprocessing.Process(
                 target=velocity_animation,
-                args=(X, Y, u_list_section, v_list_section, 10, f"{VIDEO_NAME}_{i}", islands, title_offset),
+                args=(X, Y, u_list_section, v_list_section, 10, f"{VIDEO_NAME}_{i}", islands, to_red, title_offset),
             )
             p.start()
             procs.append(p)
@@ -347,7 +354,7 @@ def main():
     else:
         print("Not using multiprocessing")
         velocity_animation(X, Y, u_list, v_list, frame_interval=10,
-                    filename=VIDEO_NAME, islands=islands)
+                    filename=VIDEO_NAME, taken_points=taken_points, islands=islands)
 
     print("Animation took {:.2f} seconds".format(time.time() - t))
 
