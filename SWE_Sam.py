@@ -150,10 +150,16 @@ def check_island_bounds(point, island):
 
     # island.append(island[0])
 
-    for i in range(len(island) - 1, 0, -1):
+    for i in range(len(island) - 1):
         # print(i, len(island))
         # print(island[i], island[i-1])
-        line2 = (island[i-1], island[i])
+        line2 = (island[i+1], island[i])
+        
+        if (line2[0][1] > line1[0][1] and line2[1][1] > line1[0][1] or
+            line2[0][1] < line1[0][1] and line2[1][1] < line1[0][1]):
+            continue
+        if line2[0][0] < line1[0][0] and line2[1][0] < line1[0][0]:
+            continue
 
         def det(a, b):
             return a[0]*b[1]-a[1]*b[0]
@@ -307,7 +313,7 @@ create_compl_islands([(0, 450),
                       (20, 100),
                       (10, -100),
                       (-50, -150),
-                      (-100, 0),
+                      (-100, 1),
                       (-75, 200)])
 # create_compl_islands([(10, 10),
 #                       (10, 15),
@@ -319,9 +325,9 @@ create_compl_islands([(0, 450),
 # print(check_island_bounds((150, 150), islands[0]))
 print("start gridcheck")
 # grid_check()
-print(check_island_bounds((0, 0), islands[0]))
-print(check_island_bounds((0, 200), islands[0]))
-print(check_island_bounds((-100, -100), islands[0]))
+print(check_island_bounds((1, 1), islands[0]))
+print(check_island_bounds((1, 201), islands[0]))
+print(check_island_bounds((-101, -101), islands[0]))
 print(check_island_bounds((-101, 201), islands[0]))
 # print(check_island_bounds((0, 0), islands[0]))
 # print(check_island_bounds((-60, 300), islands[0]))
