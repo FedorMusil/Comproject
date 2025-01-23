@@ -37,6 +37,8 @@ h += eta_n  # Superimpose the disturbance
 
 
 islands = []
+# store which grid points are on any island. makes drawing easier
+taken_points = []
 
 
 # Update function for the shallow water equations
@@ -55,14 +57,16 @@ def update(h, u, v, dt):
     u_new[:, 0] = 0.0       # Western boundary
     u_new[:, -1] = 0.0      # Eastern boundary
 
-    u_new[50, 50] = 0.0       # Western boundary
-    u_new[75, 75] = 0.0      # Eastern boundary
+    # square in middle
+    # for x in range(50, 101):
+    #     for y in range(50, 101):
+    #         u_new[x, y] = 0.0
+    #         v_new[x, y] = 0.0
+
+    update_islands(u_new, v_new)
 
     v_new[0, :] = 0.0       # Southern boundary
     v_new[-1, :] = 0.0      # Northern boundary
-
-    # v_new[50, :] = 0.0       # Southern boundary
-    # v_new[75, :] = 0.0      # Northern boundary
 
     # Compute fluxes
     flux_x = H * u_new
@@ -76,45 +80,149 @@ def update(h, u, v, dt):
     return h_new, u_new, v_new
 
 
-def draw_compl_islands(shape):
+def update_islands(u_new, v_new):
+    for i in taken_points:
+        u_new[i[0]][i[1]] = 0.0
+        v_new[i[0]][i[1]] = 0.0
+
+    return u_new, v_new
+
+
+def grid_check():
+    print(nx)
+    for x in range(60, 120):
+        print(x)
+        for y in range(60, 140):
+            # print(x, y)
+            # for i in islands:
+            if [x, y] not in taken_points:
+                x_coords = (x-75)/150 * 1000
+                y_coords = (y-75)/150 * 1000
+                # print(x_coords, y_coords)
+                if check_island_bounds((x_coords, y_coords), islands[0]):
+                    taken_points.append([x, y])
+
+
+def draw_compl_islands(ax):
+    for i in islands:
+        x_s = [edge[0] for edge in i]
+        y_s = [edge[1] for edge in i]
+        ax.plot(x_s, y_s)
+    #     for edge in i:
+    #         ax.plot([edge[0][0], edge[0][1]], [edge[1][0], edge[1][1]])
+    # ax.plot([0], [0])
+
+
+def create_compl_islands(shape):
     """
     shape must be an array of vectors, where the outline is given in a clockwise manner.
     """
     edges = []
-    edges_x = []
-    edges_y = []
-    for i in range(len(shape)-1, -2, -1):
-        # edges_x.append(shape[i])
-        edges.append([[shape[i][0], shape[i-1][0]],
-                      [shape[i][1], shape[i-1][1]]])
-        edges_x.append(shape[i][0])
-        edges_y.append(shape[i][1])
-    
+    # edges_x = []
+    # edges_y = []
+    # for i in range(len(shape)-1, -2, -1):
+    #     # edges.append([[shape[i][0], shape[i-1][0]],
+    #     #               [shape[i][1], shape[i-1][1]]])
+    #     # edges.append([[shape[i][0], shape[i][1]],
+    #     #               [shape[i-1][0], shape[i-1][1]]])
+    #     edges_x.append(shape[i][0])
+    #     edges_y.append(shape[i][1])
+
     # test check if [-1, -1] is in island, should return True (it's in the island)
-    print(check_island_bounds(np.array([-1, -1]), np.array(edges)))
-    
-    islands.append(edges)
+    # print(check_island_bounds(np.array([-1, -1]), np.array(edges)))
 
-    # plots island
-    plt.plot(edges_x, edges_y)
-    plt.show()
+    # islands.append(edges)
+    shape.append(shape[0])
+    islands.append(shape)
 
 
+# https://lazyjobseeker.github.io/en/posts/winding-number-algorithm/ used
 def check_island_bounds(point, island):
     """
     returns true if in island, otherwise false
     """
     dists = []
     ress = []
-    for edge in island:
-        dist = np.abs(np.linalg.norm(np.cross(edge[1]-edge[0], edge[0]- point))/np.linalg.norm(edge[1]-edge[0]))
-        dists.append(dist)
-        ress.append((point[0]-edge[0][0])*(edge[1][1])-edge[0][1])
-        - ((point[1]-edge[0][1])*(edge[1][0]-edge[0][0]))
+    intersect_count = 0
+    # island.append(island[0])
+
+    line1 = ((point[0], point[1]), (500, point[1]))
+
+    # island.append(island[0])
+
+    for i in range(len(island) - 1, 0, -1):
+        # print(i, len(island))
+        # print(island[i], island[i-1])
+        line2 = (island[i-1], island[i])
+
+        def det(a, b):
+            return a[0]*b[1]-a[1]*b[0]
+
+        xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+        ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+        dett = det(xdiff, ydiff)
+
+        if dett == 0:
+            continue
+        else:
+            d = (det(line1[0], line1[1]), det(line2[0], line2[1]))
+            x = det(d, xdiff)/dett
+            y = det(d, ydiff)/dett
+            if (x <= max([line2[0][0], line2[1][0]])
+                and x >= min([line1[0][0], line2[0][0], line2[1][0]])
+                and y <= max([line1[0][1]])
+                and y >= min([line1[0][1]])):
+                intersect_count = intersect_count + 1
+                print(line1, line2, x, y)
+                print("ymax = ",max([line1[0][1]]))
+                print("ymin = ",min([line1[0][1]]))
+                print("xmax = ", max([line2[0][0], line2[1][0]]))
+                print("xmin = ", min([line2[0][0], line1[0][0], line2[1][0]]))
+    # print(c_point)
+    # px, py = c_point
+    # px, py = point
+    # for i, v in enumerate(island[:-1]):
+    #     segm = island[i: i+2]
+    #     x_coords = np.transpose(segm)[0]
+    #     y_coords = np.transpose(segm)[0]
+
+    #     if px > np.max(x_coords):
+    #         continue
+    #     if (y_coords[0]-py)*(y_coords[1]-py) < 0:
+    #         intersect_count += 1
+    #     if y_coords[0] == py:
+    #         intersect_count += 0.5
+    #     if y_coords[1] == py:
+    #         intersect_count += 0.5
+
+    print(intersect_count)
+    return True if intersect_count % 2 != 0 else False
+
+        # segm = np.asarray(island[])
+
+        # e0 = np.array([edge[0][0], edge[1][0]])
+        # e1 = np.array([edge[0][1], edge[1][1]])
+        # print(edge[0], edge[1], point)
+        # # dist = np.abs(np.linalg.norm(np.cross(edge[1]-edge[0], edge[0]-point))/np.linalg.norm(edge[1]-edge[0]))
+        # dist = np.abs(np.linalg.norm(np.cross(e1-e0, e0-point))/np.linalg.norm(e1-e0))
+        # # dist = np.abs(np.linalg.norm(np.cross(new_e_1-new_e_0, new_e_0-point))/np.linalg.norm(new_e_1-new_e_0))
+        # dists.append(dist)
+        # # ress.append((point[0]-new_p_00)*(new_p_11-new_p_01)
+        #             # - ((point[1]-new_p_01)*(new_p_10-new_p_00)))
+        # ress.append(([edge[0][1]]-edge[0][0])*(point[1]-edge[1][0]) - (edge[1][1]-edge[1][0])*(point[0]-edge[0][0]))
+        # # ress.append((point[0]-edge[0][0])*(edge[1][1])-edge[0][1])
+        # # - ((point[1]-edge[0][1])*(edge[1][0]-edge[0][0]))
+
+    if np.array_equal(point, np.array([150, 150])):
+        print("point is", point)
+        print(dists)
+        # print(island)
+        print(ress)
+        print(ress[np.argmin(dists)][0], (ress[np.argmin(dists)][0] > 0))
     # print("dists = ", dists)
     # print(ress)
     # print(min(dists), ress[np.argmin(dists)], (ress[np.argmin(dists)] < 0))
-    return ress[np.argmin(dists)] < 0
+    return ress[np.argmin(dists)][0] > 0
 
 
 # Animation function to create the visualization
@@ -124,8 +232,11 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     plt.xlabel("x [km]", fontname="serif", fontsize=16)
     plt.ylabel("y [km]", fontname="serif", fontsize=16)
     q_int = 3
-    ax.plot([50, 50, 75, 75, 50], [50, 75, 75, 50, 50])
-    ax.plot([0, 100], [0, 100])
+
+    draw_compl_islands(ax)
+    plt.show()
+    return
+
     Q = ax.quiver(
         X[::q_int, ::q_int] / 1000.0, Y[::q_int, ::q_int] / 1000.0,
         u_list[0][::q_int, ::q_int], v_list[0][::q_int, ::q_int],
@@ -148,6 +259,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     anim = FuncAnimation(fig, update_quiver, frames=len(u_list), interval=10, blit=False)
     anim.save(f"{filename}.mp4", fps=24, dpi=200)
     return anim
+
 
 def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
@@ -182,6 +294,7 @@ def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
     # anim.save("{}.mp4".format(filename), writer = mpeg_writer)
     return anim,    # Need to return anim object to see the animation
 
+
 # Main simulation loop
 u_list = []
 v_list = []
@@ -189,6 +302,32 @@ seconds = 10
 fps = 24
 num_frames = fps * seconds
 
+create_compl_islands([(0, 450),
+                      (30, 260),
+                      (20, 100),
+                      (10, -100),
+                      (-50, -150),
+                      (-100, 0),
+                      (-75, 200)])
+# create_compl_islands([(10, 10),
+#                       (10, 15),
+#                       (15, 15),
+#                       (15, -20),
+#                       (0, -20),
+#                       (-10, 5)])
+
+# print(check_island_bounds((150, 150), islands[0]))
+print("start gridcheck")
+# grid_check()
+print(check_island_bounds((0, 0), islands[0]))
+print(check_island_bounds((0, 200), islands[0]))
+print(check_island_bounds((-100, -100), islands[0]))
+print(check_island_bounds((-101, 201), islands[0]))
+# print(check_island_bounds((0, 0), islands[0]))
+# print(check_island_bounds((-60, 300), islands[0]))
+# print(check_island_bounds((-10, 300), islands[0]))
+
+# print("start updating")
 for frame in range(num_frames):
     max_H = np.max(h + h0)  # Total height for CFL condition
     dt = cfl * dx / np.sqrt(g * max_H)
@@ -198,6 +337,11 @@ for frame in range(num_frames):
 
 velocity_animation(X, Y, u_list, v_list, frame_interval=10, filename="velocity_field")
 # surface_animation(X, Y, u_list, v_list, frame_interval=10, filename="surface_water")
+
+# create_compl_islands([[-300, -300],
+#                       [-300, 300],
+#                       [300, 300],
+#                       [300, -300]])
 
 # draw_compl_islands([[1.5, 2.0],
 #                     [2.0, 1.0],
