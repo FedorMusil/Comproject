@@ -145,8 +145,8 @@ def check_island_bounds(point, island):
     line1 = ((float(point[0]), float(point[1])), (500.0, float(point[1])))
 
     for i in range(len(island) - 1):
-        line2 = ((float(island[i+1][0]),float(island[i+1][1])),
-                 (float(island[i][0]),float(island[i][1])))
+        line2 = ((float(island[i+1][0]), float(island[i+1][1])),
+                 (float(island[i][0]), float(island[i][1])))
 
         # filter out the lines that are completely to the left of the point, or
         # are entirely above or below it.
