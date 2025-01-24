@@ -2,13 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import multiprocessing
+import threading
 import os
+import sys
 import subprocess
 from matplotlib.animation import FuncAnimation
 from matplotlib.animation import FFMpegWriter as writer
+from islands import australia as island_array
 
 
 USE_MULTIPROCESSING = True
+VIDEO_NAME_VELOCITY = "velocity_heatmap"
 VIDEO_NAME = "velocity_field"
 USE_COLOUR = False
 COLOUR = "limegreen"
@@ -47,11 +51,16 @@ def update(h, u, v, dt, h0, dx, dy, g, taken_points):
 
     return h_new, u_new, v_new
 
+velocity_magnitude_list = []
 
 def update_islands(u_new, v_new, taken_points):
+    current_velocity_magnitude  = np.zeros((150, 150))
     for i in taken_points:
+        velocity_magnitude = np.sqrt(v_new[i[0]][i[1]]**2 + u_new[i[0]][i[1]]**2)
+        current_velocity_magnitude[i[0]][i[1]] = velocity_magnitude       
         u_new[i[0]][i[1]] = 0.0
         v_new[i[0]][i[1]] = 0.0
+    velocity_magnitude_list.append(current_velocity_magnitude)
 
     return u_new, v_new
 
@@ -173,15 +182,20 @@ def check_island_bounds(point, island):
     return True if intersect_count % 2 != 0 else False
 
 
+def plot_velocity_map(collisions_v, collisions_u):
+    plt.scatter(collisions_v, collisions_u)
+    plt.show()
+
+
 # Animation function to create the visualization
 def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, taken_points, title_offset = 0):
     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
-    plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days",
+    plt.title("Velocity field $\\mathbf{{u}}(x,y)$ after 0.0 days",
               fontname="serif", fontsize=19)
     plt.xlabel("x [km]", fontname="serif", fontsize=16)
     plt.ylabel("y [km]", fontname="serif", fontsize=16)
     q_int = 3
-
+    
     # Fill in the islands
     if USE_COLOUR:
         for i in taken_points:
@@ -200,7 +214,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, 
         u = u_list[num]
         v = v_list[num]
         ax.set_title(
-            "Velocity field $\mathbf{{u}}(x,y,t)$ after t = {:.2f}".format(
+            "Velocity field $\\mathbf{{u}}(x,y,t)$ after t = {:.2f}".format(
                 (num * frame_interval / 3600) + title_offset
             ),
             fontname="serif",
@@ -214,40 +228,69 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, 
     anim.save(f"{filename}.mp4", fps=FRAMERATE, dpi=200)
     return anim
 
-"""
-def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
-    plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname="serif", fontsize=19)
-    plt.xlabel("x [km]", fontname="serif", fontsize=16)
-    plt.ylabel("y [km]", fontname="serif", fontsize=16)
+# def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
+#     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
-    surf = ax.plot_surface(X, Y, u_list[0], cmap=plt.cm.RdBu_r)
+#     plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname="serif", fontsize=19)
+#     plt.xlabel("x [km]", fontname="serif", fontsize=16)
+#     plt.ylabel("y [km]", fontname="serif", fontsize=16)
+
+#     surf = ax.plot_surface(X, Y, u_list[0], cmap=plt.cm.RdBu_r)
 
 
-    def update_surf(num):
+#     def update_surf(num):
 
-        z_list = np.array([[np.linalg.norm(np.array([u_list[num][x], v_list[num][y]])) for x in range(len(u_list[num]))] for y in range(len(v_list[num]))])
+#         z_list = np.array([[np.linalg.norm(np.array([u_list[num][x], v_list[num][y]])) for x in range(len(u_list[num]))] for y in range(len(v_list[num]))])
 
-        ax.clear()
-        surf = ax.plot_surface(X/1000, Y/1000, z_list, cmap = plt.cm.RdBu_r)
-        ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:.2f}$ hours".format(
-            num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
-        ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
-        ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
-        ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
-        ax.set_zlim(-5, 20)
-        plt.tight_layout()
-        return surf,
+#         ax.clear()
+#         surf = ax.plot_surface(X/1000, Y/1000, z_list, cmap = plt.cm.RdBu_r)
+#         ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:.2f}$ hours".format(
+#             num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
+#         ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
+#         ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
+#         ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
+#         ax.set_zlim(-5, 20)
+#         plt.tight_layout()
+#         return surf,
 
-    anim = FuncAnimation(fig, update_surf,
-        frames = len(u_list), interval = 10, blit = False)
-    mpeg_writer = writer(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
-    anim.save(f"{filename}.mp4", fps=24, dpi=200)
-    # anim.save("{}.mp4".format(filename), writer = mpeg_writer)
-    return anim,    # Need to return anim object to see the animation
-"""
+#     anim = FuncAnimation(fig, update_surf,
+#         frames = len(u_list), interval = 10, blit = False)
+#     mpeg_writer = writer(fps = 24, bitrate = 10000,
+#         codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
+#     anim.save(f"{filename}.mp4", fps=24, dpi=200)
+#     # anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+#     return anim,    # Need to return anim object to see the animation
+
+def plot_velocity_heatmap(velocity_magnitude_list, video_name):
+    fig, ax = plt.subplots()
+    fig.patch.set_facecolor('white')
+    ax.set_facecolor('white')
+    cmap = plt.cm.get_cmap('hot')
+    cmap.set_bad(color='black')  # Set bad values to black
+    cax = ax.imshow(velocity_magnitude_list[0], cmap='hot', interpolation='nearest')
+    fig.colorbar(cax, label='Velocity Magnitude')
+    plt.title('Heatmap of Wave Impact on Island')
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+
+    def update(frame):
+        cax.set_array(velocity_magnitude_list[frame])
+        return cax,
+
+    anim = FuncAnimation(fig, update, frames=len(velocity_magnitude_list), blit=True)
+    anim.save(video_name, fps=FRAMERATE, dpi=200)
+
+
+def print_loading_message(message, stop_event):
+    while not stop_event.is_set():
+        for i in range(4):
+            if stop_event.is_set():
+                break
+            sys.stdout.write(f"\r{message}{'.' * i}   ")
+            sys.stdout.flush()
+            time.sleep(0.5)
+    sys.stdout.write("\r" + " " * (len(message) + 4) + "\r")
 
 
 def main():
@@ -288,9 +331,13 @@ def main():
     # store which grid points are on any island. makes drawing easier
     taken_points = []
 
+    stop_event = threading.Event()
+    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread.start()
 
     # Main simulation loop
     t = time.time()
+    total_time = time.time()
     u_list = []
     v_list = []
     seconds = 20
@@ -304,108 +351,6 @@ def main():
             for coord in normalized_coords
         ]
 
-    # is nu nogal gehardcoded, maar ik zie geen makkelijkere oplossing
-    island_array = [(0.717679658270422, 0.0),
-  (0.7455672452453883, 0.09700176366843033),
-  (0.7623211446740858, 0.09012844257579476),
-  (0.7819147451042582, 0.11199294532627865),
-  (0.7980922098569158, 0.19923237067678937),
-  (0.8129812588142483, 0.21428571428571427),
-  (0.8044515103338633, 0.21900317290201513),
-  (0.8513513513513513, 0.2523305834713295),
-  (0.8665461412092842, 0.2495590828924162),
-  (0.8696343402225755, 0.2646114404164104),
-  (0.8600953895071543, 0.26659911571970296),
-  (0.8820734169368777, 0.31305114638447973),
-  (0.9060795991012179, 0.31305114638447973),
-  (0.9109697933227345, 0.34632642636428806),
-  (0.9528343716068041, 0.3950617283950617),
-  (0.9642289348171701, 0.380090483563259),
-  (0.9697933227344993, 0.3902457148932713),
-  (0.9633493627413621, 0.4567901234567901),
-  (0.9721780604133545, 0.4487695146380274),
-  (0.9762950049339078, 0.4982363315696649),
-  (0.9602543720190779, 0.5811129529297945),
-  (0.8926868044515104, 0.7163690105507444),
-  (0.889101991048093, 0.7733686067019401),
-  (0.8393591153432709, 0.7865961199294532),
-  (0.8060413354531002, 0.8264514036667873),
-  (0.7623211446740858, 0.7980044329072273),
-  (0.7376788553259142, 0.8177153252599119),
-  (0.6868044515103339, 0.8017778212552287),
-  (0.6480965021056434, 0.7619047619047619),
-  (0.6400245945798757, 0.7204585537918872),
-  (0.6090423314943891, 0.7098765432098766),
-  (0.6185725406379814, 0.6940035273368607),
-  (0.6120826709062003, 0.6692968499287226),
-  (0.6018397949659097, 0.6975308641975309),
-  (0.5805934360508039, 0.7001763668430335),
-  (0.5939654680018455, 0.6860670194003528),
-  (0.6057233704292527, 0.6268579024049271),
-  (0.5620031796502385, 0.6768885875152357),
-  (0.5682121521123694, 0.6931216931216931),
-  (0.5524642289348172, 0.6907338366696137),
-  (0.5182829888712241, 0.613606351618743),
-  (0.4507154213036566, 0.5836850396285376),
-  (0.3298910212070368, 0.6067019400352733),
-  (0.2890988655462573, 0.6287477954144621),
-  (0.26311524591771285, 0.6649029982363316),
-  (0.1875993640699523, 0.6586321348116491),
-  (0.14149443561208266, 0.6960240548289761),
-  (0.10810810810810811, 0.6940234248019046),
-  (0.07333967508048679, 0.6728395061728395),
-  (0.0688231962794798, 0.6437389770723104),
-  (0.08517647546438518, 0.6358024691358025),
-  (0.08505564387917329, 0.5860992343357482),
-  (0.06680604797326009, 0.5114638447971781),
-  (0.020433131229066093, 0.4091710758377425),
-  (0.025558400483274336, 0.4021164021164021),
-  (0.04292527821939587, 0.4329551508758885),
-  (0.037360890302066775, 0.40328626276318774),
-  (0.05097412273736858, 0.427689594356261),
-  (0.03149254161073876, 0.37389770723104054),
-  (0.04531001589825119, 0.301112117362918),
-  (0.05564387917329094, 0.31582497902439055),
-  (0.11287758346581876, 0.2573562568558455),
-  (0.1287758346581876, 0.2681726256910778),
-  (0.21303656597774245, 0.2355692667583467),
-  (0.2410696237188864, 0.19753086419753085),
-  (0.2384737678855326, 0.16996396295501076),
-  (0.2591414944356121, 0.14787211147486873),
-  (0.2702702702702703, 0.1757503995300284),
-  (0.2671407627232371, 0.14462081128747795),
-  (0.28855325914149443, 0.150027095023087),
-  (0.2845786963434022, 0.12169000061378973),
-  (0.30842607313195547, 0.11206148933292367),
-  (0.307631160572337, 0.09703622118979555),
-  (0.3267090620031797, 0.09713009880726012),
-  (0.32909379968203495, 0.08308618082186937),
-  (0.35135135135135137, 0.07861374213506135),
-  (0.3815580286168522, 0.10963278112195454),
-  (0.40858505564387915, 0.10779271135076071),
-  (0.40790747543049055, 0.08641975308641975),
-  (0.4340411835660621, 0.042328042328042326),
-  (0.48171701112877585, 0.03402291873155214),
-  (0.4610884953330721, 0.01675485008818342),
-  (0.48171701112877585, 0.004109592856271445),
-  (0.4843241948773641, 0.018518518518518517),
-  (0.5421303656597775, 0.029492767293394607),
-  (0.5397456279809221, 0.03798104302329329),
-  (0.5816666560405857, 0.007054673721340388),
-  (0.5609374085569244, 0.03439153439153439),
-  (0.5763116057233705, 0.024463257394355224),
-  (0.5834658187599364, 0.035115644631934013),
-  (0.5666076591169094, 0.07671957671957672),
-  (0.5839097747878484, 0.07848324514991181),
-  (0.5862834212707586, 0.09347442680776014),
-  (0.5635930047694754, 0.08365163005356596),
-  (0.5508744038155803, 0.11148197590632258),
-  (0.6157034629083403, 0.15873015873015872),
-  (0.6478537360890302, 0.15082986593517092),
-  (0.6383147853736089, 0.1741080089409874),
-  (0.6664335859649221, 0.18342151675485008),
-  (0.6869213994505023, 0.1437389770723104),
-  (0.7036521716531111, 0.0)]
 
     create_compl_islands(scale_to_map(island_array, -350, 350),
                         islands)
@@ -422,13 +367,59 @@ def main():
         u_list.append(u.copy())
         v_list.append(v.copy())
 
+    stop_event.set()
+    loading_thread.join()
     print("Math took {:.2f} seconds".format(time.time() - t))
-
+    
+    stop_event = threading.Event()
+    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread.start()
+    
     t = time.time()
+    # Create the heatmap
+    num_procs = 10   # Don't use too many or your laptop will explode
+    procs = []
+    for i in range(num_procs):
+        startindex = i * (len(velocity_magnitude_list) // num_procs)
+        endindex = (i + 1) * (len(velocity_magnitude_list) // num_procs)
 
+        velocity_magnitude_list_section = velocity_magnitude_list[startindex:endindex]
+        p = multiprocessing.Process(
+            target=plot_velocity_heatmap,
+            args=(velocity_magnitude_list_section, f"{VIDEO_NAME_VELOCITY}_{i}.mp4",),
+        )
+        p.start()
+        procs.append(p)
+
+    for p in procs:
+        p.join()
+    
+    # Stitch videos with ffmpeg. Make sure ffmpeg is callable within the terminal.
+    with open("videos.txt", "w") as f:
+        for i in range(num_procs):
+            f.write(f"file {VIDEO_NAME_VELOCITY}_{i}.mp4\n")   # Write the video filenames to a text file so ffmpeg doesn't skip any videos.
+    command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", f"{VIDEO_NAME_VELOCITY}.mp4"]
+    # Hides the output, for debugging remove: stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # Remove temporary video and text files
+    for i in range(num_procs):
+        os.remove(f"{VIDEO_NAME_VELOCITY}_{i}.mp4")
+    os.remove("videos.txt")
+    
+    stop_event.set()
+    loading_thread.join()
+    
+    print("Heatmap took {:.2f} seconds to make".format(time.time() - t))
+
+    stop_event = threading.Event()
+    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread.start()
+    
+    t = time.time()
+    
     if USE_MULTIPROCESSING:
-        print("Using multiprocessing")
-        num_procs = 8   # Don't use too many or your laptop will explode
+        num_procs = 12   # Don't use too many or your laptop will explode
         procs = []
         for i in range(num_procs):
             startindex = i * (num_frames // num_procs)
@@ -450,8 +441,10 @@ def main():
         with open("videos.txt", "w") as f:
             for i in range(num_procs):
                 f.write(f"file {VIDEO_NAME}_{i}.mp4\n")   # Write the video filenames to a text file so ffmpeg doesn't skip any videos.
+        
         command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
-        subprocess.run(command)
+        # Hides the output, for debugging remove: 
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Remove temporary video and text files
         for i in range(num_procs):
@@ -459,12 +452,13 @@ def main():
         os.remove("videos.txt")
 
     else:
-        print("Not using multiprocessing")
         velocity_animation(X, Y, u_list, v_list, frame_interval=10,
                     filename=VIDEO_NAME, taken_points=taken_points, islands=islands)
-
+    stop_event.set()
+    loading_thread.join()
     print("Animation took {:.2f} seconds".format(time.time() - t))
-
+    
+    print("Total calculation time: {:.2f} seconds".format(time.time() - total_time))
 
 if __name__ == "__main__":
     main()
