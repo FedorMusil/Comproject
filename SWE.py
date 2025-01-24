@@ -7,7 +7,6 @@ import os
 import sys
 import subprocess
 from matplotlib.animation import FuncAnimation
-from matplotlib.animation import FFMpegWriter as writer
 from islands import australia as island_array
 
 
@@ -18,6 +17,7 @@ USE_COLOUR = False
 COLOUR = "limegreen"
 OUTLINE_COLOUR = "red"
 FRAMERATE = 60
+
 
 # Update function for the shallow water equations
 def update(h, u, v, dt, h0, dx, dy, g, taken_points):
@@ -45,19 +45,24 @@ def update(h, u, v, dt, h0, dx, dy, g, taken_points):
     flux_y = H * v_new
 
     # Update water height using flux divergence
-    div_flux_x = (np.roll(flux_x, -1, axis=1) - np.roll(flux_x, 1, axis=1)) / (2 * dx)
-    div_flux_y = (np.roll(flux_y, -1, axis=0) - np.roll(flux_y, 1, axis=0)) / (2 * dy)
+    div_flux_x = (np.roll(flux_x, -1, axis=1) - np.roll(
+        flux_x, 1, axis=1)) / (2 * dx)
+    div_flux_y = (np.roll(flux_y, -1, axis=0) - np.roll(
+        flux_y, 1, axis=0)) / (2 * dy)
     h_new = h - dt * (div_flux_x + div_flux_y)
 
     return h_new, u_new, v_new
 
+
 velocity_magnitude_list = []
 
+
 def update_islands(u_new, v_new, taken_points):
-    current_velocity_magnitude  = np.zeros((150, 150))
+    current_velocity_magnitude = np.zeros((150, 150))
     for i in taken_points:
-        velocity_magnitude = np.sqrt(v_new[i[0]][i[1]]**2 + u_new[i[0]][i[1]]**2)
-        current_velocity_magnitude[i[0]][i[1]] = velocity_magnitude       
+        velocity_magnitude = np.sqrt(
+            v_new[i[0]][i[1]]**2 + u_new[i[0]][i[1]]**2)
+        current_velocity_magnitude[i[0]][i[1]] = velocity_magnitude
         u_new[i[0]][i[1]] = 0.0
         v_new[i[0]][i[1]] = 0.0
     velocity_magnitude_list.append(current_velocity_magnitude)
@@ -72,15 +77,14 @@ def grid_check(nx, ny, islands, taken_points):
     for x in range(nx):
         for y in range(ny):
             for i in islands:
-                if [y, x] not in taken_points:
+                if [x, y] not in taken_points:
                     # To translate the indeces of the grid to the drawn grid.
                     # It should be possible to not hardcode this.
                     x_coords = (x-75)/150 * 1000
                     y_coords = (y-75)/150 * 1000
 
-                    if check_island_bounds((x_coords, y_coords), i):
-                        # hoezo is dit geroteerd??
-                        taken_points.append([y, x])
+                    if check_island_bounds((y_coords, x_coords), i):
+                        taken_points.append([x, y])
     return taken_points
 
 
@@ -188,18 +192,19 @@ def plot_velocity_map(collisions_v, collisions_u):
 
 
 # Animation function to create the visualization
-def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, taken_points, title_offset = 0):
+def velocity_animation(X, Y, u_list, v_list, frame_interval,
+                       filename, islands, taken_points, title_offset=0):
     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
     plt.title("Velocity field $\\mathbf{{u}}(x,y)$ after 0.0 days",
               fontname="serif", fontsize=19)
     plt.xlabel("x [km]", fontname="serif", fontsize=16)
     plt.ylabel("y [km]", fontname="serif", fontsize=16)
     q_int = 3
-    
+
     # Fill in the islands
     if USE_COLOUR:
         for i in taken_points:
-            ax.plot(i[1], i[0], "o", color=COLOUR)
+            ax.plot(i[0], i[1], "o", color=COLOUR)
 
     # Draws the islands to the plot
     draw_compl_islands(ax, islands)
@@ -229,46 +234,14 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename, islands, 
     return anim
 
 
-# def surface_animation(X, Y, u_list, v_list, frame_interval, filename):
-#     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-
-#     plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname="serif", fontsize=19)
-#     plt.xlabel("x [km]", fontname="serif", fontsize=16)
-#     plt.ylabel("y [km]", fontname="serif", fontsize=16)
-
-#     surf = ax.plot_surface(X, Y, u_list[0], cmap=plt.cm.RdBu_r)
-
-
-#     def update_surf(num):
-
-#         z_list = np.array([[np.linalg.norm(np.array([u_list[num][x], v_list[num][y]])) for x in range(len(u_list[num]))] for y in range(len(v_list[num]))])
-
-#         ax.clear()
-#         surf = ax.plot_surface(X/1000, Y/1000, z_list, cmap = plt.cm.RdBu_r)
-#         ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:.2f}$ hours".format(
-#             num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
-#         ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
-#         ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
-#         ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
-#         ax.set_zlim(-5, 20)
-#         plt.tight_layout()
-#         return surf,
-
-#     anim = FuncAnimation(fig, update_surf,
-#         frames = len(u_list), interval = 10, blit = False)
-#     mpeg_writer = writer(fps = 24, bitrate = 10000,
-#         codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
-#     anim.save(f"{filename}.mp4", fps=24, dpi=200)
-#     # anim.save("{}.mp4".format(filename), writer = mpeg_writer)
-#     return anim,    # Need to return anim object to see the animation
-
 def plot_velocity_heatmap(velocity_magnitude_list, video_name):
     fig, ax = plt.subplots()
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
     cmap = plt.cm.get_cmap('hot')
     cmap.set_bad(color='black')  # Set bad values to black
-    cax = ax.imshow(velocity_magnitude_list[0], cmap='hot', interpolation='nearest')
+    cax = ax.imshow(velocity_magnitude_list[0], cmap='hot',
+                    interpolation='nearest', origin='lower')
     fig.colorbar(cax, label='Velocity Magnitude')
     plt.title('Heatmap of Wave Impact on Island')
     plt.xlabel('X Coordinate')
@@ -278,7 +251,8 @@ def plot_velocity_heatmap(velocity_magnitude_list, video_name):
         cax.set_array(velocity_magnitude_list[frame])
         return cax,
 
-    anim = FuncAnimation(fig, update, frames=len(velocity_magnitude_list), blit=True)
+    anim = FuncAnimation(fig, update, frames=len(
+        velocity_magnitude_list), blit=True)
     anim.save(video_name, fps=FRAMERATE, dpi=200)
 
 
@@ -305,7 +279,7 @@ def main():
     g = 9.81  # Gravitational acceleration
     h0 = 100.0  # Resting water depth
     cfl = 0.9  # CFL condition factor
-    f_0 = 1.16E-4 # Fixed part of coriolis parameter
+    # f_0 = 1.16E-4  # Fixed part of coriolis parameter
 
     # Create the grid
     X, Y = np.meshgrid(x, y)
@@ -316,14 +290,14 @@ def main():
     v = np.zeros((ny, nx))  # y-component velocity
 
     # Apply Gaussian disturbance to h
-    Lr = np.sqrt(g*h)/(f_0*4)
+    # Lr = np.sqrt(g*h)/(f_0*4)
 
-    # eta_n = np.exp(-((X)**2 / (Lr**2) + (Y)**2 / (Lr**2)))  # Gaussian disturbance
     # offset_x = Lx/2.7
     # offset_y = Ly/4.0
     offset_x = 375000
     offset_y = 250000
-    eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) + (Y-offset_y)**2/(2*(0.05E+6)**2)))
+    eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) +
+                   (Y-offset_y)**2/(2*(0.05E+6)**2)))
     h += eta_n  # Superimpose the disturbance
 
     # Stores islands
@@ -332,7 +306,8 @@ def main():
     taken_points = []
 
     stop_event = threading.Event()
-    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread = threading.Thread(target=print_loading_message, args=(
+        "Loading", stop_event))
     loading_thread.start()
 
     # Main simulation loop
@@ -347,15 +322,15 @@ def main():
     def scale_to_map(normalized_coords, min_val, max_val):
         scale_range = max_val - min_val
         return [
-            (coord[0] * scale_range - max_val, coord[1] * -scale_range - min_val)
+            (coord[0] * scale_range + min_val,
+             -coord[1] * scale_range + max_val)  # Flip y-coordinate
             for coord in normalized_coords
         ]
 
-
     create_compl_islands(scale_to_map(island_array, -350, 350),
-                        islands)
+                         islands)
 
-    # Checks which grid points are in an island. Only needs to be executed once.
+    # Checks if grid points are in an island. Only needs to be executed once.
     taken_points = grid_check(nx, ny, islands, taken_points)
     # Convert taken points to array of actual coordinates on plot
     to_red = [[(x-75)/150 * 1000, (y-75)/150 * 1000] for x, y in taken_points]
@@ -370,56 +345,66 @@ def main():
     stop_event.set()
     loading_thread.join()
     print("Math took {:.2f} seconds".format(time.time() - t))
-    
+
     stop_event = threading.Event()
-    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread = threading.Thread(target=print_loading_message, args=(
+        "Loading", stop_event))
     loading_thread.start()
-    
+
     t = time.time()
     # Create the heatmap
-    num_procs = 10   # Don't use too many or your laptop will explode
+    num_procs = 4   # Don't use too many or your laptop will explode
     procs = []
     for i in range(num_procs):
         startindex = i * (len(velocity_magnitude_list) // num_procs)
         endindex = (i + 1) * (len(velocity_magnitude_list) // num_procs)
 
-        velocity_magnitude_list_section = velocity_magnitude_list[startindex:endindex]
+        velocity_magnitude_list_section = velocity_magnitude_list[
+            startindex:endindex]
         p = multiprocessing.Process(
             target=plot_velocity_heatmap,
-            args=(velocity_magnitude_list_section, f"{VIDEO_NAME_VELOCITY}_{i}.mp4",),
+            args=(velocity_magnitude_list_section,
+                  f"{VIDEO_NAME_VELOCITY}_{i}.mp4",),
         )
         p.start()
         procs.append(p)
 
     for p in procs:
         p.join()
-    
-    # Stitch videos with ffmpeg. Make sure ffmpeg is callable within the terminal.
+
+    # Stitch videos with ffmpeg.
+    # Make sure ffmpeg is callable within the terminal.
     with open("videos.txt", "w") as f:
         for i in range(num_procs):
-            f.write(f"file {VIDEO_NAME_VELOCITY}_{i}.mp4\n")   # Write the video filenames to a text file so ffmpeg doesn't skip any videos.
-    command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", f"{VIDEO_NAME_VELOCITY}.mp4"]
-    # Hides the output, for debugging remove: stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Write the video filenames to a text file so ffmpeg doesn't
+            # skip any videos.
+            f.write(f"file {VIDEO_NAME_VELOCITY}_{i}.mp4\n")
+    command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
+               "videos.txt", "-c", "copy", f"{VIDEO_NAME_VELOCITY}.mp4"]
+    # Hides the output, for debugging remove: stdout=subprocess.DEVNULL,
+    # stderr=subprocess.DEVNULL
+    subprocess.run(command, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
 
     # Remove temporary video and text files
     for i in range(num_procs):
         os.remove(f"{VIDEO_NAME_VELOCITY}_{i}.mp4")
     os.remove("videos.txt")
-    
+
     stop_event.set()
     loading_thread.join()
-    
+
     print("Heatmap took {:.2f} seconds to make".format(time.time() - t))
 
     stop_event = threading.Event()
-    loading_thread = threading.Thread(target=print_loading_message, args=("Loading", stop_event))
+    loading_thread = threading.Thread(target=print_loading_message, args=(
+        "Loading", stop_event))
     loading_thread.start()
-    
+
     t = time.time()
-    
+
     if USE_MULTIPROCESSING:
-        num_procs = 12   # Don't use too many or your laptop will explode
+        num_procs = 4   # Don't use too many or your laptop will explode
         procs = []
         for i in range(num_procs):
             startindex = i * (num_frames // num_procs)
@@ -429,7 +414,8 @@ def main():
             title_offset = startindex * 10 / 3600
             p = multiprocessing.Process(
                 target=velocity_animation,
-                args=(X, Y, u_list_section, v_list_section, 10, f"{VIDEO_NAME}_{i}", islands, to_red, title_offset),
+                args=(X, Y, u_list_section, v_list_section, 10,
+                      f"{VIDEO_NAME}_{i}", islands, to_red, title_offset),
             )
             p.start()
             procs.append(p)
@@ -437,14 +423,19 @@ def main():
         for p in procs:
             p.join()
 
-        # Stitch videos with ffmpeg. Make sure ffmpeg is callable within the terminal.
+        # Stitch videos with ffmpeg.
+        # Make sure ffmpeg is callable within the terminal.
         with open("videos.txt", "w") as f:
             for i in range(num_procs):
-                f.write(f"file {VIDEO_NAME}_{i}.mp4\n")   # Write the video filenames to a text file so ffmpeg doesn't skip any videos.
-        
-        command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
-        # Hides the output, for debugging remove: 
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # Write the video filenames to a text file so ffmpeg doesn't
+                # skip any videos.
+                f.write(f"file {VIDEO_NAME}_{i}.mp4\n")
+
+        command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
+                   "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
+        # Hides the output, for debugging remove:
+        subprocess.run(command, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
 
         # Remove temporary video and text files
         for i in range(num_procs):
@@ -453,12 +444,15 @@ def main():
 
     else:
         velocity_animation(X, Y, u_list, v_list, frame_interval=10,
-                    filename=VIDEO_NAME, taken_points=taken_points, islands=islands)
+                           filename=VIDEO_NAME, taken_points=taken_points,
+                           islands=islands)
     stop_event.set()
     loading_thread.join()
     print("Animation took {:.2f} seconds".format(time.time() - t))
-    
-    print("Total calculation time: {:.2f} seconds".format(time.time() - total_time))
+
+    print("Total calculation time: {:.2f} seconds".format(
+        time.time() - total_time))
+
 
 if __name__ == "__main__":
     main()
