@@ -8,6 +8,7 @@ import sys
 import subprocess
 import argparse
 from matplotlib.animation import FuncAnimation
+import matplotlib
 from islands import australia as island_array
 
 
@@ -233,8 +234,8 @@ def plot_velocity_heatmap(velocity_magnitude_list, video_name):
     fig, ax = plt.subplots()
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
-    cmap = plt.cm.get_cmap('hot')
-    cmap.set_bad(color='black')  # Set bad values to black
+    cmap = matplotlib.colormaps.get_cmap('hot')     # plt.cm.get_cmap is depricated.
+    cmap.set_bad(color='black')                     # Set bad values to black
     cax = ax.imshow(velocity_magnitude_list[0], cmap='hot',
                     interpolation='nearest', origin='lower')
     fig.colorbar(cax, label='Velocity Magnitude')
@@ -477,7 +478,7 @@ def parse():
     parser.add_argument("-c", "--use_colour", action="store_true",
                         help="Use colour to indicate islands", default=False, required=False)
     parser.add_argument("-mp", "--use_multiprocessing", action="store_true",
-                        help="Use multiprocessing for video creation (requires ffmpeg)", default=True, required=False)
+                        help="Use multiprocessing for video creation (requires ffmpeg)", required=False)
     parser.add_argument("-np", "--num_procs", type=int,
                         help="Number of processes to use for video creation", default=4, required=False)
     parser.add_argument("-hm", "--make_heatmap", action="store_true",
