@@ -19,7 +19,9 @@ OUTLINE_COLOUR = "red"
 FRAMERATE = 60
 
 
-# Update function for the shallow water equations
+# Updates the height (h), and velocities (u, v) of the shallow water equations
+# for a single timestep using finite difference methods. Enforces boundary
+# conditions and ensures velocity is set to zero on islands.
 def update(h, u, v, dt, h0, dx, dy, g, taken_points):
     H = h + h0  # Total water height
 
@@ -28,6 +30,7 @@ def update(h, u, v, dt, h0, dx, dy, g, taken_points):
     dhdy = (np.roll(h, -1, axis=0) - np.roll(h, 1, axis=0)) / (2 * dy)
 
     # Update velocities using height gradients
+    # u is the horizontal while v is the vertical movement (x and y vectors)
     u_new = u - g * dt * dhdx
     v_new = v - g * dt * dhdy
 
@@ -56,6 +59,9 @@ def update(h, u, v, dt, h0, dx, dy, g, taken_points):
 velocity_magnitude_list = []
 
 
+# Updates velocities on island points to zero, ensuring no water movement.
+# Computes velocity magnitude for visualization purposes and appends it to
+# the global velocity_magnitude_list for later use in animations.
 def update_islands(u_new, v_new, taken_points):
     current_velocity_magnitude = np.zeros((150, 150))
     for i in taken_points:
@@ -71,7 +77,10 @@ def update_islands(u_new, v_new, taken_points):
 
 def grid_check(nx, ny, islands, taken_points):
     """
-    For each point in the grid, check if it lies in an island.
+    Checks whether each grid point lies within any of the defined islands.
+    If so, it marks the point as occupied and adds it to the taken_points list.
+    This is used to enforce boundary conditions for water movement and
+    visualization.
     """
     for x in range(nx):
         for y in range(ny):
@@ -99,10 +108,12 @@ def draw_compl_islands(ax, islands):
 
 def create_compl_islands(shape, islands):
     """
-    Shape can be given clockwise and counterclockwise. Stores an island in the
-    islands array as a list of edge points.
+    Takes the outline of an island (as a list of points) and ensures it forms a
+    closed polygon by appending the first point at the end. Stores the
+    processed shape in the islands array for use in grid checks and plotting.
     """
-    # Dit is om de laatste lijn mee te nemen, anders wordt die niet getekend
+
+    # This code is mainly used to draw the final line of the island shape
     shape.append(shape[0])
     islands.append(shape)
 
@@ -187,9 +198,12 @@ def plot_velocity_map(collisions_v, collisions_u):
     plt.show()
 
 
-# Animation function to create the visualization
+# Creates an animation of the velocity field over time. The quiver plot shows
+# the velocity vectors scaled and sampled at intervals defined by q_int.
+# title_offset adjusts the time displayed in the animation title.
 def velocity_animation(X, Y, u_list, v_list, frame_interval,
-                       filename, islands, island_points, title_offset=0, use_colour=False):
+                       filename, islands, island_points, title_offset=0,
+                       use_colour=False):
     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
     plt.title("Velocity field $\\mathbf{{u}}(x,y)$ after 0.0 days",
               fontname="serif", fontsize=19)
@@ -234,8 +248,8 @@ def plot_velocity_heatmap(velocity_magnitude_list, video_name):
     fig, ax = plt.subplots()
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
-    cmap = matplotlib.colormaps.get_cmap('hot')     # plt.cm.get_cmap is depricated.
-    cmap.set_bad(color='black')                     # Set bad values to black
+    cmap = matplotlib.colormaps.get_cmap('hot')
+    cmap.set_bad(color='black')  # Set bad values to black
     cax = ax.imshow(velocity_magnitude_list[0], cmap='hot',
                     interpolation='nearest', origin='lower')
     fig.colorbar(cax, label='Velocity Magnitude')
@@ -285,11 +299,8 @@ def main(args: argparse.Namespace):
     u = np.zeros((ny, nx))  # x-component velocity
     v = np.zeros((ny, nx))  # y-component velocity
 
-    # Apply Gaussian disturbance to h
-    # Lr = np.sqrt(g*h)/(f_0*4)
-
-    offset_x = 375000
-    offset_y = 250000
+    offset_x = -450 * 1000
+    offset_y = 300 * 1000
     eta_n = np.exp(-((X-offset_x)**2/(2*(0.05E+6)**2) +
                    (Y-offset_y)**2/(2*(0.05E+6)**2)))
     h += eta_n  # Superimpose the disturbance
@@ -316,7 +327,8 @@ def main(args: argparse.Namespace):
         "Loading", stop_event))
     loading_thread.start()
 
-    # Define the scaling function for the new range of -500 to 500
+    # Scales normalized island coordinates to the simulation grid's range,
+    # ensuring they align with the physical domain boundaries.
     def scale_to_map(normalized_coords, min_val, max_val):
         scale_range = max_val - min_val
         return [
@@ -331,7 +343,8 @@ def main(args: argparse.Namespace):
     # Checks if grid points are in an island. Only needs to be executed once.
     taken_points = grid_check(nx, ny, islands, taken_points)
     # Convert taken points to array of actual coordinates on plot
-    pixels_in_islands = [[(x-75)/150 * 1000, (y-75)/150 * 1000] for x, y in taken_points]
+    pixels_in_islands = [[
+        (x-75)/150 * 1000, (y-75)/150 * 1000] for x, y in taken_points]
 
     for _ in range(num_frames):
         max_H = np.max(h + h0)  # Total height for CFL condition
@@ -346,7 +359,9 @@ def main(args: argparse.Namespace):
 
     if args.make_heatmap and args.verbose:
         s = "Creating heatmap"
-        r = "using multiprocessing..." if args.use_multiprocessing else "without multiprocessing..."
+        r1 = "using multiprocessing..."
+        r2 = "without multiprocessing..."
+        r = r1 if args.use_multiprocessing else r2
         print(f"\n{s} {r}")
 
     stop_event = threading.Event()
@@ -356,21 +371,24 @@ def main(args: argparse.Namespace):
 
     t = time.time()
 
-    # Create the heatmap
+    # Generates the heatmap of velocity magnitudes. When multiprocessing is
+    # enabled, splits the workload among multiple processes to improve
+    # efficiency. Uses ffmpeg to combine partial videos into a final output.
     if args.make_heatmap:
         if args.use_multiprocessing:
             num_procs = args.num_procs
             procs = []
             for i in range(num_procs):
                 startindex = i * (len(velocity_magnitude_list) // num_procs)
-                endindex = (i + 1) * (len(velocity_magnitude_list) // num_procs)
+                endindex = (i + 1) * (len(
+                    velocity_magnitude_list) // num_procs)
 
                 velocity_magnitude_list_section = velocity_magnitude_list[
                     startindex:endindex]
                 p = multiprocessing.Process(
                     target=plot_velocity_heatmap,
                     args=(velocity_magnitude_list_section,
-                        f"{VIDEO_NAME_HEATMAP}_{i}.mp4",),
+                          f"{VIDEO_NAME_HEATMAP}_{i}.mp4",),
                 )
                 p.start()
                 procs.append(p)
@@ -382,15 +400,15 @@ def main(args: argparse.Namespace):
             # Make sure ffmpeg is callable within the terminal.
             with open("videos.txt", "w") as f:
                 for i in range(num_procs):
-                    # Write the video filenames to a text file so ffmpeg doesn't
-                    # skip any videos.
+                    # Write the video filenames to a text file so ffmpeg
+                    # doesn't skip any videos.
                     f.write(f"file {VIDEO_NAME_HEATMAP}_{i}.mp4\n")
             command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
-                    "videos.txt", "-c", "copy", f"{VIDEO_NAME_HEATMAP}.mp4"]
-            # Hides the output, for debugging remove: stdout=subprocess.DEVNULL,
-            # stderr=subprocess.DEVNULL
+                       "videos.txt", "-c", "copy", f"{VIDEO_NAME_HEATMAP}.mp4"]
+            # Hides the output, for debugging remove:
+            # stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             subprocess.run(command, stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
+                           stderr=subprocess.DEVNULL)
 
             # Remove temporary video and text files
             for i in range(num_procs):
@@ -398,7 +416,8 @@ def main(args: argparse.Namespace):
             os.remove("videos.txt")
 
         else:
-            plot_velocity_heatmap(velocity_magnitude_list, f"{VIDEO_NAME_HEATMAP}.mp4")
+            plot_velocity_heatmap(velocity_magnitude_list,
+                                  f"{VIDEO_NAME_HEATMAP}.mp4")
 
     stop_event.set()
     loading_thread.join()
@@ -409,7 +428,9 @@ def main(args: argparse.Namespace):
     if args.make_video and args.verbose:
         s = "Creating velocity field video"
         c = f"{s} with colour" if args.use_colour else s
-        r = "using multiprocessing..." if args.use_multiprocessing else "without multiprocessing..."
+        r1 = "using multiprocessing..."
+        r2 = "without multiprocessing..."
+        r = r1 if args.use_multiprocessing else r2
         print(f"\n{c} {r}")
 
     stop_event = threading.Event()
@@ -433,7 +454,8 @@ def main(args: argparse.Namespace):
                 p = multiprocessing.Process(
                     target=velocity_animation,
                     args=(X, Y, u_list_section, v_list_section, 10,
-                        f"{VIDEO_NAME}_{i}", islands, pixels_in_islands, title_offset, args.use_colour),
+                          f"{VIDEO_NAME}_{i}", islands, pixels_in_islands,
+                          title_offset, args.use_colour),
                 )
                 p.start()
                 procs.append(p)
@@ -445,15 +467,15 @@ def main(args: argparse.Namespace):
             # Make sure ffmpeg is callable within the terminal.
             with open("videos.txt", "w") as f:
                 for i in range(num_procs):
-                    # Write the video filenames to a text file so ffmpeg doesn't
-                    # skip any videos.
+                    # Write the video filenames to a text file so ffmpeg
+                    # doesn't skip any videos.
                     f.write(f"file {VIDEO_NAME}_{i}.mp4\n")
 
             command = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
-                    "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
+                       "videos.txt", "-c", "copy", f"{VIDEO_NAME}.mp4"]
             # Hides the output, for debugging remove:
             subprocess.run(command, stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL)
+                           stderr=subprocess.DEVNULL)
 
             # Remove temporary video and text files
             for i in range(num_procs):
@@ -462,8 +484,8 @@ def main(args: argparse.Namespace):
 
         else:
             velocity_animation(X, Y, u_list, v_list, frame_interval=10,
-                            filename=VIDEO_NAME, island_points=taken_points,
-                            islands=islands, use_colour=args.use_colour)
+                               filename=VIDEO_NAME, island_points=taken_points,
+                               islands=islands, use_colour=args.use_colour)
     stop_event.set()
     loading_thread.join()
     if args.make_video:
@@ -476,19 +498,26 @@ def main(args: argparse.Namespace):
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--use_colour", action="store_true",
-                        help="Use colour to indicate islands", default=False, required=False)
+                        help="Use colour to indicate islands", default=False,
+                        required=False)
     parser.add_argument("-mp", "--use_multiprocessing", action="store_true",
-                        help="Use multiprocessing for video creation (requires ffmpeg)", required=False)
+                        help="Use multiprocessing for video creation (requires ffmpeg)",
+                        required=False)
     parser.add_argument("-np", "--num_procs", type=int,
-                        help="Number of processes to use for video creation", default=4, required=False)
+                        help="Number of processes to use for video creation",
+                        default=4, required=False)
     parser.add_argument("-hm", "--make_heatmap", action="store_true",
-                        help="Make heatmap of wave impact on island", default=False, required=False)
+                        help="Make heatmap of wave impact on island",
+                        default=False, required=False)
     parser.add_argument("-mv", "--make_video", action="store_true",
-                        help="Make video of velocity field", default=False, required=False)
+                        help="Make video of velocity field",
+                        default=False, required=False)
     parser.add_argument("-s", "--seconds", type=int,
-                        help="Number of seconds to simulate", default=20, required=False)
+                        help="Number of seconds to simulate",
+                        default=20, required=False)
     parser.add_argument("-v", "--verbose", action="store_true",
-                         help="Print more information", default=False, required=False)
+                        help="Print more information",
+                        default=False, required=False)
 
     args = parser.parse_args()
     if not args.make_heatmap and not args.make_video:
