@@ -245,13 +245,20 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval,
 
 
 def plot_velocity_heatmap(velocity_magnitude_list, video_name):
+    # Determine global min and max values for consistent scaling
+    global_min = np.min([np.min(frame) for frame in velocity_magnitude_list])
+    global_max = np.max([np.max(frame) for frame in velocity_magnitude_list])
+
     fig, ax = plt.subplots()
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
     cmap = matplotlib.colormaps.get_cmap('hot')
     cmap.set_bad(color='black')  # Set bad values to black
+
+    # Use global min and max for consistent color scaling
     cax = ax.imshow(velocity_magnitude_list[0], cmap='hot',
-                    interpolation='nearest', origin='lower')
+                    interpolation='nearest', origin='lower',
+                    vmin=global_min, vmax=global_max)
     fig.colorbar(cax, label='Velocity Magnitude')
     plt.title('Heatmap of Wave Impact on Island')
     plt.xlabel('X Coordinate')
@@ -264,6 +271,7 @@ def plot_velocity_heatmap(velocity_magnitude_list, video_name):
     anim = FuncAnimation(fig, update, frames=len(
         velocity_magnitude_list), blit=True)
     anim.save(video_name, fps=FRAMERATE, dpi=200)
+
 
 
 def print_loading_message(message, stop_event):
@@ -289,7 +297,6 @@ def main(args: argparse.Namespace):
     g = 9.81  # Gravitational acceleration
     h0 = 100.0  # Resting water depth
     cfl = 0.9  # CFL condition factor
-    # f_0 = 1.16E-4  # Fixed part of coriolis parameter
 
     # Create the grid
     X, Y = np.meshgrid(x, y)
