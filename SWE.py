@@ -273,7 +273,6 @@ def plot_velocity_heatmap(velocity_magnitude_list, video_name):
     anim.save(video_name, fps=FRAMERATE, dpi=200)
 
 
-
 def print_loading_message(message, stop_event):
     while not stop_event.is_set():
         for i in range(4):
@@ -317,8 +316,6 @@ def main(args: argparse.Namespace):
     # store which grid points are on any island. makes drawing easier
     taken_points = []
 
-    stop_event = threading.Event()
-
     # Main simulation loop
     t = time.time()
     total_time = time.time()
@@ -330,6 +327,7 @@ def main(args: argparse.Namespace):
     if args.verbose:
         print("Starting simulation calculations...\n")
 
+    stop_event = threading.Event()
     loading_thread = threading.Thread(target=print_loading_message, args=(
         "Loading", stop_event))
     loading_thread.start()
@@ -508,7 +506,8 @@ def parse():
                         help="Use colour to indicate islands", default=False,
                         required=False)
     parser.add_argument("-mp", "--use_multiprocessing", action="store_true",
-                        help="Use multiprocessing for video creation (requires ffmpeg)",
+                        help="Use multiprocessing for video creation "
+                             "(requires ffmpeg)",
                         required=False)
     parser.add_argument("-np", "--num_procs", type=int,
                         help="Number of processes to use for video creation",
@@ -528,14 +527,16 @@ def parse():
 
     args = parser.parse_args()
     if not args.make_heatmap and not args.make_video:
-        print("Error: Please specify at least one of the following flags: --make_heatmap, --make_video")
+        print("Error: Please specify at least one of the following flags: "
+              "--make_heatmap, --make_video")
         exit(1)
 
     if args.verbose:
         print(args)
 
     if args.use_colour and args.make_video and args.verbose:
-        print("Warning: Adding colour to the velocity video will make the video much slower to create.")
+        print("Warning: Adding colour to the velocity video will make the "
+              "video much slower to create.")
 
     main(args)
 
